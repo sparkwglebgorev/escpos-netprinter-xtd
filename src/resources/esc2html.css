@@ -8,6 +8,8 @@ body {
   /*margin: 1em;*/
   padding: 1em;
   /*min-width: 28em;*/
+  transform: scale(1.25);
+  transform-origin: top left;
   display: inline-block;
 }
 
