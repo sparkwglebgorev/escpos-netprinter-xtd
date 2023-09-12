@@ -15,14 +15,21 @@ def launchServer():
             conn, addr = s.accept()
             with conn:
                 print (f"Adress connected: {addr}")
-                taille = 0
+                binfile = open("reception.bin", "wb")
+
                 while True:
                     data = conn.recv(1024)  # receive 1024 bytes (or less)
-                    taille += 1
-                    if not data:
-                        break  #pour arrêter quand tout est reçu 
-                    conn.sendall(b"All done!")
-                print (f"Received {taille} packets", flush=True)
+                    if not data:  #Quand tout a été reçu
+                        binfile.close()  #Écrire le fichier et le fermer
+                        break  #puis fermer la réception
+                    else:
+                        binfile.write(data)
+
+                conn.sendall(b"All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+                
+                #TODO:  traiter le fichier reception.bin pour en faire un HTML, plus possiblement informer Flask?
+
+                print (f"Receipt received", flush=True)
 
 
 
