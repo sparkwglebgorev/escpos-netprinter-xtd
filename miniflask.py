@@ -10,7 +10,9 @@ def launchServer():
         s.bind((HOST, TCP_PORT))
         s.listen()
 
-        while True:  #Recevoir des connexions, une à la fois, pour l'éternité.
+        while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
+            # NOTE: on a volontaire pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
+            # TODO:  peut-être implémenter le signal BUSY plus tard?
             print('waiting for connection')
             conn, addr = s.accept()
             with conn:
@@ -39,7 +41,12 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello_world():
+
+    #TODO: faire une interface qui présente tous les reçus qu'on a gardé.
+
     return "<p>Hello, World FLG!</p>"
+
+
 
 if __name__ == "__main__":
     #Lancer le service TCP
