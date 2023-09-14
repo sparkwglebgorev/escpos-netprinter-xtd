@@ -17,7 +17,15 @@ RUN apt-get install -y python3-flask
 
 RUN composer install
 
-EXPOSE 5000
-# Démarrer le serveur Flask avec le script miniflask
-CMD [ "python3", "escpos-netprinter.py"]
-#ENTRYPOINT [ "/bin/bash" ]
+#Configurer l'environnement d'exécution 
+ENV FLASK_APP=escpos-netprinter.py
+ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_RUN_PORT=5000
+# To activate the Flask debug mode, set at True (case-sensitive)
+ENV FLASK_RUN_DEBUG=false  
+
+EXPOSE 9100
+EXPOSE ${FLASK_RUN_PORT}
+
+# Démarrer le serveur Flask et le serveur d'impression
+CMD python3 ${FLASK_APP}

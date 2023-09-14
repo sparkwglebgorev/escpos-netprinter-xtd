@@ -1,14 +1,14 @@
 from flask import Flask
+from web import receipt_view
+from os import getenv
 import random, socket, threading
 
-#tcp server
-HOST = ''  #Empty string accepts all origins
-TCP_PORT = 9100
-
-def launchServer():
+#Network esc-pos printer server
+def launchPrintServer():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, TCP_PORT))
-        s.listen()
+        HOST = getenv('FLASK_RUN_HOST', '0.0.0.0')  #The print service will respond to the same adresses as Flask
+        s.bind(('', 9100))  #Always use port 9100
+        s.listen(1)  #Accept only one connection at a time.
 
         while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
             """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
@@ -49,13 +49,24 @@ def hello_world():
 
     return "<p>Hello, World FLG!</p>"
 
-
+@app.route("/recu")
+def show_receipt():
+    return 
 
 if __name__ == "__main__":
-    #Lancer le service TCP
-    t = threading.Thread(target=launchServer)
+    #Lancer le service d'impression TCP
+    t = threading.Thread(target=launchPrintServer)
     t.daemon = True
     t.start()
+    print (f"Print port open", flush=True)
 
     #Lancer l'application Flask
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    host = getenv('FLASK_RUN_HOST', '0.0.0.0')
+    port = getenv('FLASK_RUN_PORT', '5000')
+    debugmode = getenv('FLASK_RUN_DEBUG', "false")
+    if debugmode == 'True': 
+        startDebug:bool = True
+    else:
+        startDebug:bool = False
+
+    app.run(host=host, port=int(port), debug=startDebug, use_reloader=False)
