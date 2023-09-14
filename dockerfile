@@ -19,5 +19,5 @@ RUN composer install
 
 EXPOSE 5000
 # Démarrer le serveur Flask avec le script miniflask
-CMD [ "python3", "miniflask.py"]
+CMD [ "python3", "escpos-netprinter.py"]
 #ENTRYPOINT [ "/bin/bash" ]

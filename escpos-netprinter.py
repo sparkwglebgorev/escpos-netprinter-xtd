@@ -11,8 +11,11 @@ def launchServer():
         s.listen()
 
         while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
-            # NOTE: on a volontaire pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
-            # TODO:  peut-être implémenter le signal BUSY plus tard?
+            """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
+                NOTE:  il est possible que ce soit le comportement attendu soit de n'accepter qu'une connection à la fois.  Voir p.6 de la spécification d'un module Ethernet
+                         à l'adresse suivante:  https://files.cyberdata.net/assets/010748/ETHERNET_IV_Product_Guide_Rev_D.pdf
+                TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
+             """
             print('waiting for connection')
             conn, addr = s.accept()
             with conn:
