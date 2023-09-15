@@ -1,4 +1,4 @@
-Copyright (c) 2014-17 Michael Billington `< michael.billington@gmail.com >` and
+ESCPOS-tools Copyright (c) 2014-17 Michael Billington `< michael.billington@gmail.com >` and
 others.
 
 Permission is hereby granted, free of charge, to any person
