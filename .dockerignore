@@ -1,2 +1,10 @@
+.dockerignore
 dockerfile
+.git
+.git/**
+.gitignore
+doc
 doc/**
+*.md
+.travis.yml
+*.bin

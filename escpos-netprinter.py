@@ -1,11 +1,12 @@
-from flask import Flask, send_file
-from web import receipt_view
-from os import getenv
+from flask import Flask, send_file, render_template
+from os import getenv, listdir
+from os.path import splitext
 import subprocess
 from subprocess import CompletedProcess
 from pathlib import PurePath
 from lxml import html, etree
-import random, socket, threading
+from datetime import datetime
+import socket, threading 
 
 #Network ESC/pos printer service
 def launchPrintServer():
@@ -53,17 +54,19 @@ def launchPrintServer():
                     print (f"Receipt received")
                     #print(recu.stdout, flush=True)
 
+                    heureRecept = datetime.now()
+
                     recuConvert:etree.ElementTree  = html.fromstring(recu.stdout)
 
                     theHead:etree.Element = recuConvert.head
                     newTitle = etree.Element("title")
-                    newTitle.text = "Ce qui vient d'être reçu"
+                    newTitle.text = "Reçu imprimé le {}".format(heureRecept.strftime('%d %b %Y @ %X%Z'))
                     theHead.append(newTitle)
 
                     #print(etree.tostring(theHead), flush=True)
 
                     try:
-                        nouveauRecu = open(PurePath('web', 'receipts', 'myreceipt.html'), mode='wt')
+                        nouveauRecu = open(PurePath('web', 'receipts', 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d%X%Z'))), mode='wt')
                         #Écrire le reçu dans le fichier.
                         nouveauRecu.write(html.tostring(recuConvert).decode())
                         nouveauRecu.close()
@@ -76,15 +79,21 @@ def launchPrintServer():
 app = Flask(__name__)
 
 @app.route("/")
-def hello_world():
+def accueil():
+    return render_template('accueil.html.j2', host=getenv('FLASK_RUN_HOST', '0.0.0.0'), 
+                           port=getenv('PRINTER_PORT', '9100'), 
+                            debug=getenv('FLASK_RUN_DEBUG', "false") )
 
-    #TODO: faire une interface qui présente tous les reçus qu'on a gardé.
+@app.route("/recus")
+def list_receipts():
+    fichiers = listdir(PurePath('web', 'receipts'))
+    noms = [ splitext(filename)[0] for filename in fichiers ]
+    return render_template('receiptList.html.j2', receiptlist=noms)
 
-    return "<p>Hello, World FLG!</p>"
-
-@app.route("/recu")
-def show_receipt():
-    return send_file(PurePath('web', 'receipts', 'myreceipt.html'))
+@app.route("/recus/<string:filename>")
+def show_receipt(filename):
+    return send_file(PurePath('web', 'receipts', filename))
+    
 
 if __name__ == "__main__":
     #Lancer le service d'impression TCP

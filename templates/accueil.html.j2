@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Imprimante virtuelle</title>
+</head>
+<body>
+<h1>État de l'imprimante:</h1>
+<ul>
+    <li>En ligne</li>
+    <li>Adresses source acceptées: {{host}}</li>
+    <li>Port d'impression: {{port}}</li>
+    {%if debug == 'True'%}
+        <li><b style="color:#8B0000">Mode débogage activé</b></li>
+    {%endif%}
+</ul>
+ 
+ <a href="/recus">Consulter les reçus imprimés</a>
+
+</body>
+</html>

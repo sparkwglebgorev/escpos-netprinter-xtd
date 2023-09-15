@@ -18,6 +18,7 @@ RUN apt-get install -y python3-lxml
 
 #Installation de escpos-tools
 RUN composer install
+RUN rm composer.json && rm composer.lock
 
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
