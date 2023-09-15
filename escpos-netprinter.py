@@ -15,6 +15,7 @@ def launchPrintServer():
         PORT = getenv('PRINTER_PORT', '9100')  #A printer should always listen to port 9100, but the Epson printers can be configured so also will we.
         s.bind((HOST, int(PORT)))  
         s.listen(1)  #Accept only one connection at a time.
+        print (f"Printer port {PORT} open", flush=True)
 
         while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
             """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
@@ -100,8 +101,7 @@ if __name__ == "__main__":
     t = threading.Thread(target=launchPrintServer)
     t.daemon = True
     t.start()
-    print (f"Print port open", flush=True)
-
+    
     #Lancer l'application Flask
     host = getenv('FLASK_RUN_HOST', '0.0.0.0')
     port = getenv('FLASK_RUN_PORT', '5000')
