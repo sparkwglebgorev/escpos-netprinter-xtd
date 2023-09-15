@@ -4,9 +4,10 @@ from os import getenv
 import subprocess
 from subprocess import CompletedProcess
 from pathlib import PurePath
+from lxml import html, etree
 import random, socket, threading
 
-#Network esc-pos printer service
+#Network ESC/pos printer service
 def launchPrintServer():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         HOST = getenv('FLASK_RUN_HOST', '0.0.0.0')  #The print service will respond to the same adresses as Flask
@@ -51,10 +52,20 @@ def launchPrintServer():
 
                     print (f"Receipt received")
                     #print(recu.stdout, flush=True)
+
+                    recuConvert:etree.ElementTree  = html.fromstring(recu.stdout)
+
+                    theHead:etree.Element = recuConvert.head
+                    newTitle = etree.Element("title")
+                    newTitle.text = "Ce qui vient d'être reçu"
+                    theHead.append(newTitle)
+
+                    #print(etree.tostring(theHead), flush=True)
+
                     try:
                         nouveauRecu = open(PurePath('web', 'receipts', 'myreceipt.html'), mode='wt')
                         #Écrire le reçu dans le fichier.
-                        nouveauRecu.write(recu.stdout)
+                        nouveauRecu.write(html.tostring(recuConvert).decode())
                         nouveauRecu.close()
 
                     except OSError as err:

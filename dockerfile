@@ -13,7 +13,8 @@ WORKDIR /home/escpos-emu/
 
 #Installation de Flask
 RUN apt-get update
-RUN apt-get install -y python3-flask
+RUN apt-get install -y python3-flask 
+RUN apt-get install -y python3-lxml
 
 #Installation de escpos-tools
 RUN composer install
