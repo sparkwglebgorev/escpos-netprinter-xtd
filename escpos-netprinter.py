@@ -1,10 +1,12 @@
-from flask import Flask
+from flask import Flask, send_file
 from web import receipt_view
 from os import getenv
 import subprocess
+from subprocess import CompletedProcess
+from pathlib import PurePath
 import random, socket, threading
 
-#Network esc-pos printer server
+#Network esc-pos printer service
 def launchPrintServer():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         HOST = getenv('FLASK_RUN_HOST', '0.0.0.0')  #The print service will respond to the same adresses as Flask
@@ -14,7 +16,7 @@ def launchPrintServer():
 
         while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
             """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
-                NOTE:  il est possible que ce soit le comportement attendu soit de n'accepter qu'une connection à la fois.  Voir p.6 de la spécification d'un module Ethernet
+                NOTE:  il est possible que ce soit le comportement attendu de n'accepter qu'une connection à la fois.  Voir p.6 de la spécification d'un module Ethernet
                          à l'adresse suivante:  https://files.cyberdata.net/assets/010748/ETHERNET_IV_Product_Guide_Rev_D.pdf
                 TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
              """
@@ -33,15 +35,32 @@ def launchPrintServer():
                         #Écrire les données reçues dans le fichier.
                         binfile.write(data)
 
-                conn.sendall(b"All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+                conn.sendall(b"Virtual printer: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+                conn.close()
+                print ("Data received, client disconnected.", flush=True)
                 
                 #TODO:  traiter le fichier reception.bin pour en faire un HTML, plus possiblement informer Flask?
+                recu:CompletedProcess = subprocess.run(["php", "esc2html.php", "reception.bin"], capture_output=True, text=True )
+                if recu.returncode != 0:
+                    print(f"Error while converting receipt: {recu.returncode}")
+                    print("Error output:")
+                    print(recu.stderr, flush=True)
                 
-                print (f"Receipt received", flush=True)
+                else:
+                    #Si la conversion s'est bien passée, on devrait avoir le HTML
 
+                    print (f"Receipt received")
+                    #print(recu.stdout, flush=True)
+                    try:
+                        nouveauRecu = open(PurePath('web', 'receipts', 'myreceipt.html'), mode='wt')
+                        #Écrire le reçu dans le fichier.
+                        nouveauRecu.write(recu.stdout)
+                        nouveauRecu.close()
 
-
-
+                    except OSError as err:
+                        print("File creation error:", err.errno, flush=True)
+                    
+                    
 
 app = Flask(__name__)
 
@@ -54,7 +73,7 @@ def hello_world():
 
 @app.route("/recu")
 def show_receipt():
-    return 
+    return send_file(PurePath('web', 'receipts', 'myreceipt.html'))
 
 if __name__ == "__main__":
     #Lancer le service d'impression TCP
