@@ -1,13 +1,15 @@
 from flask import Flask
 from web import receipt_view
 from os import getenv
+import subprocess
 import random, socket, threading
 
 #Network esc-pos printer server
 def launchPrintServer():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         HOST = getenv('FLASK_RUN_HOST', '0.0.0.0')  #The print service will respond to the same adresses as Flask
-        s.bind(('', 9100))  #Always use port 9100
+        PORT = getenv('PRINTER_PORT', '9100')  #A printer should always listen to port 9100, but the Epson printers can be configured so also will we.
+        s.bind((HOST, int(PORT)))  
         s.listen(1)  #Accept only one connection at a time.
 
         while True:  #Recevoir des connexions, une à la fois, pour l'éternité.  
@@ -19,21 +21,22 @@ def launchPrintServer():
             print('waiting for connection')
             conn, addr = s.accept()
             with conn:
-                print (f"Adress connected: {addr}")
+                print (f"Adress connected: {addr}", flush=True)
                 binfile = open("reception.bin", "wb")
 
                 while True:
                     data = conn.recv(1024)  # receive 1024 bytes (or less)
-                    if not data:  #Quand tout a été reçu
+                    if not data:  #Quand on a reçu le signal de fin de transmission
                         binfile.close()  #Écrire le fichier et le fermer
                         break  #puis fermer la réception
                     else:
+                        #Écrire les données reçues dans le fichier.
                         binfile.write(data)
 
                 conn.sendall(b"All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
                 
                 #TODO:  traiter le fichier reception.bin pour en faire un HTML, plus possiblement informer Flask?
-
+                
                 print (f"Receipt received", flush=True)
 
 
@@ -69,4 +72,4 @@ if __name__ == "__main__":
     else:
         startDebug:bool = False
 
-    app.run(host=host, port=int(port), debug=startDebug, use_reloader=False)
+    app.run(host=host, port=int(port), debug=startDebug, use_reloader=False) #On empêche le reloader parce qu'il repart "main" au complet et le service d'imprimante n'est pas conçu pour ça.

@@ -15,16 +15,18 @@ WORKDIR /home/escpos-emu/
 RUN apt-get update
 RUN apt-get install -y python3-flask
 
+#Installation de escpos-tools
 RUN composer install
 
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
+ENV PRINTER_PORT=9100  
 # To activate the Flask debug mode, set at True (case-sensitive)
 ENV FLASK_RUN_DEBUG=false  
 
-EXPOSE 9100
+EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
 
 # Démarrer le serveur Flask et le serveur d'impression
