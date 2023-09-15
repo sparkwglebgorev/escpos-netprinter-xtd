@@ -8,3 +8,4 @@ doc/**
 *.md
 .travis.yml
 *.bin
+web/receipts/**
