@@ -6,6 +6,7 @@ from subprocess import CompletedProcess
 from pathlib import PurePath
 from lxml import html, etree
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import socket, threading 
 
 #Network ESC/pos printer service
@@ -55,7 +56,7 @@ def launchPrintServer():
                     print (f"Receipt received")
                     #print(recu.stdout, flush=True)
 
-                    heureRecept = datetime.now()
+                    heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
 
                     recuConvert:etree.ElementTree  = html.fromstring(recu.stdout)
 
