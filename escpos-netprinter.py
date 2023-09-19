@@ -33,9 +33,19 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         binfile = open("reception.bin", "wb")
 
         #Lire tout jusqu'à ce qu'on ait EOF 
+        indata:bytes = b''
         try:
-            indata:bytes = self.rfile.read()
+            indata = self.rfile.read()
      
+        except TimeoutError:
+            print("Timeout while reading")
+            if len(indata) > 0:
+                print(f"{len(indata)} bytes received.")
+                print(indata, flush=True)
+            else: 
+                print("Nothing received!")
+                
+        else:
             print(f"{len(indata)} bytes received.", flush=True)
             #Écrire les données reçues dans le fichier.
             binfile.write(indata)
@@ -49,14 +59,6 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             
             #traiter le fichier reception.bin pour en faire un HTML
             self.print_toHTML("reception.bin")
-
-        except TimeoutError:
-            print("Timeout while reading")
-            if len(indata) > 0:
-                print(f"{len(indata)} bytes received.")
-                print(indata, flush=True)
-            else: 
-                print("Nothing received!")
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
     def print_toHTML(self, binfilename:str):
