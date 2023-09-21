@@ -29,7 +29,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     
     # Receive the print data and dump it in a file.
     def handle(self):
-        print (f"Adress connected: {self.client_address}", flush=True)
+        print (f"Address connected: {self.client_address}", flush=True)
         binfile = open("reception.bin", "wb")
 
         #Lire tout jusqu'à ce qu'on ait EOF 
@@ -54,6 +54,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             binfile.close()  #Écrire le fichier et le fermer
 
             self.wfile.write(b"Virtual printer: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+            self.wfile.flush()
 
             print ("Data received, ACK sent.", flush=True)
             
@@ -87,7 +88,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             #print(etree.tostring(theHead), flush=True)
 
             try:
-                nouveauRecu = open(PurePath('web', 'receipts', 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d%X%Z'))), mode='wt')
+                nouveauRecu = open(PurePath('web', 'receipts', 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X%Z'))), mode='wt')
                 #Écrire le reçu dans le fichier.
                 nouveauRecu.write(html.tostring(recuConvert).decode())
                 nouveauRecu.close()
@@ -128,7 +129,7 @@ def launchPrintServer(printServ:ESCPOSServer):
 if __name__ == "__main__":
 
     #Obtenir les variables d'environnement
-    host = getenv('FLASK_RUN_HOST', '0.0.0.0')  #By default, listen to all source adresses
+    host = getenv('FLASK_RUN_HOST', '0.0.0.0')  #By default, listen to all source addresses
     port = getenv('FLASK_RUN_PORT', '5000')
     debugmode = getenv('FLASK_RUN_DEBUG', "false")
     printPort = getenv('PRINTER_PORT', '9100')
