@@ -54,6 +54,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             binfile.close()  #Écrire le fichier et le fermer
 
             self.wfile.write(b"Virtual printer: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+            self.wfile.flush()
 
             print ("Data received, ACK sent.", flush=True)
             
