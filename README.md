@@ -16,7 +16,7 @@ This project requires:
 To install from source:
 
 ```bash
-wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/heads/moveToSocketServer.zip
+wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/heads/master.zip
 unzip master.zip 
 cd escpos-netprinter-master
 docker build -t escpos-netprinter:beta .
