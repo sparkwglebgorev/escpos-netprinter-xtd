@@ -57,6 +57,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
             self.wfile.write(b"Virtual printer: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
             self.wfile.flush()
+            self.connection.close()
 
             print ("Data received, ACK sent.", flush=True)
             
