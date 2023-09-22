@@ -25,7 +25,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     """
         TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
     """
-    timeout = 30  #On abandonne une réception après 30 secondes.
+    timeout = 5  #On abandonne une réception après 30 secondes.
     
     # Receive the print data and dump it in a file.
     def handle(self):
@@ -39,11 +39,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
      
         except TimeoutError:
             print("Timeout while reading")
+            self.connection.close()
             if len(indata) > 0:
                 print(f"{len(indata)} bytes received.")
                 print(indata, flush=True)
             else: 
-                print("Nothing received!")
+                print("Nothing received!", flush=True)
+            
                 
         else:
             print(f"{len(indata)} bytes received.", flush=True)
