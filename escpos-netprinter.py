@@ -25,14 +25,14 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     """
         TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
     """
-    timeout = 5  #On abandonne une réception après 30 secondes.
+    timeout = 10  #On abandonne une réception après 10 secondes - un compromis pour assurer que tout passe sans se bourrer de connections zombies.
     
     # Receive the print data and dump it in a file.
     def handle(self):
         print (f"Address connected: {self.client_address}", flush=True)
         binfile = open("reception.bin", "wb")
 
-        #Lire tout jusqu'à ce qu'on ait EOF 
+        #Read everything until we get EOF 
         indata:bytes = b''
         try:
             indata = self.rfile.read()
@@ -55,11 +55,11 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             #Quand on a reçu le signal de fin de transmission
             binfile.close()  #Écrire le fichier et le fermer
 
-            self.wfile.write(b"Virtual printer: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+            self.wfile.write(b"ESCPOS-netprinter: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
             self.wfile.flush()
             self.connection.close()
 
-            print ("Data received, ACK sent.", flush=True)
+            print ("Data received, signature sent.", flush=True)
             
             #traiter le fichier reception.bin pour en faire un HTML
             self.print_toHTML("reception.bin")
