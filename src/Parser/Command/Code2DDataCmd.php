@@ -8,18 +8,18 @@ use ReceiptPrintHq\EscposTools\Parser\Command\DataCmd;
 //                       (PDF417, QR Code, MaxiCode, 2-dimensional GS1 DataBar, Composite Symbology). 
 class Code2DDataCmd extends DataCmd
 {
+    /*This symbol has the following format: GS ( k pL pH cn fn [parameters]
+    Symbol type is specified by cn
+    Function code fn specifies the function
+    pL and pH specify the number of bytes following cn as (pL + pH × 256)
+    The [parameters] are described in each function. 
+    (ref: Epson ESC/POS Command Reference for TM Printers)
+    */
     private $pL = null;
     private $pH = null;
     private $cn = null;
   
     //Process one command byte.  Return true if the byte is interpreted without error
-    /*This symbol has the following format: GS ( k pL pH cn fn [parameters]
-        Symbol type is specified by cn
-        Function code fn specifies the function
-        pL and pH specify the number of bytes following cn as (pL + pH × 256)
-        The [parameters] are described in each function. 
-    (ref: Epson ESC/POS Command Reference for TM Printers)
-    */
     public function addChar($char)
     {
         //Lets begin by getting the size from the first 4 bytes
