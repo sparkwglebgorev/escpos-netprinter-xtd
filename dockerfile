@@ -16,7 +16,9 @@ RUN apt-get update
 RUN apt-get install -y python3-flask 
 RUN apt-get install -y python3-lxml
 
-#Installation de escpos-tools
+#Installation de php-qrcode :requiert seulement imagick
+RUN composer require chillerlan/php-qrcode:"^4.3.4" --prefer-stable
+#Installation de escpos-tools: requiert gd en plus de imagick
 RUN composer install
 RUN rm composer.json && rm composer.lock
 

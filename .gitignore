@@ -17,3 +17,4 @@ vendor/
 # other build files
 build/*
 *.phar
+.devcontainer/devcontainer.json
