@@ -11,7 +11,7 @@ class QRcodeSubCommand extends DataSubCmd
 
     public function __construct($dataSize)
     {
-        $this -> dataSize = $dataSize - 1;  //$dataSize is the size of [parameters], so we exclude the fn byte
+        $this->dataSize = $dataSize - 1;  //$dataSize is the size of [parameters], so we exclude the fn byte
     }
 
     public function addChar($char)
@@ -25,6 +25,14 @@ class QRcodeSubCommand extends DataSubCmd
             //then send [parameters] into $data
             return parent::addChar($char);
         }
+    }
+
+    public function get_fn(){
+        return $this->fn;
+    }
+
+    public function get_data(){
+        return $this->data;
     }
 
 }

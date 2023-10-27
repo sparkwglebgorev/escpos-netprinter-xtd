@@ -1,7 +1,8 @@
 {
 	"require" : {
 		"squizlabs/php_codesniffer" : "^2.8",
-		"mike42/escpos-php": "^1.5"
+		"mike42/escpos-php": "^1.5",
+		"chillerlan/php-qrcode":"^4.3.4"
 	},
 	"autoload" : {
 		"psr-4" : {

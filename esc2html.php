@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/vendor/autoload.php';
 
+use ReceiptPrintHq\EscposTools\Parser\Context\Code2DStateStorage;
 use ReceiptPrintHq\EscposTools\Parser\Parser;
 use ReceiptPrintHq\EscposTools\Parser\Context\InlineFormatting;
 
@@ -27,6 +28,8 @@ $lineHtml = "";
 $bufferedImg = null;
 $imgNo = 0;
 $skipLineBreak = false;
+$code2dStorage = new Code2DStateStorage();
+
 foreach ($commands as $cmd) {
     if ($cmd -> isAvailableAs('InitializeCmd')) {
         $formatting = InlineFormatting::getDefault();
@@ -73,6 +76,35 @@ foreach ($commands as $cmd) {
         // Should load into print buffer and print next line break, but we print immediately, so need to skip the next line break.
         $skipLineBreak = true;
     }
+    if ($cmd -> isAvailableAs('Code2DDataCmd')){
+        $sub = $cmd -> subCommand();
+        if($sub->isAvaliableAs('QRcodeSubCommand')){
+            switch ($sub->get_fn()) {
+                case 65:  //set model
+                    $code2dStorage->setQRModel($sub->get_data());
+                    break;
+                case 67: //set module size
+                    $code2dStorage->setModuleSize($sub->get_data());
+                    break;
+                case 69: //select error correction level
+                    $code2dStorage->setErrorCorrectLevel($sub->get_data());
+                    break;
+                case 80:  //Store QR data
+                    $code2dStorage->fillSymbolStorage($sub->get_data());
+                    break;
+                case 81:  //Print the QR code
+                    // TODO: what to do if the QR code data has not yet been sent?
+                    $qrcodeURI = $code2dStorage->getQRCodeURI();
+                    $qrcodeData = $code2dStorage->getQRCodeData();
+                    
+                    $outp[] = qrCodeAsDataUrl($qrcodeURI, $qrcodeData);
+                    break;
+                case 82:  //Transmit size information of symbol storage data.
+                    # TODO: maybe implement by printing the info?
+                    break;
+            }
+        }
+    }
 }
 
 // Stuff we need in the HTML header
@@ -102,6 +134,16 @@ function imgAsDataUrl($bufferedImg)
     $imgWidth = $bufferedImg -> getWidth() / 2; // scaling, images are quite high res and dwarf the text
     $bufferedImg = null;
     return "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$imgAlt\" width=\"{$imgWidth}px\" />";
+}
+
+/* Creates the HTML image of a QR code
+ Args:  
+        bufferedQRImg: the Base64 encoded PNG image of the QR code
+        qrcodeData: the data encoded in the QR code, to be put in the alt tag as an accessibility measure */
+function qrCodeAsDataUrl($bufferedQRImg, $qrcodeData)
+{
+    $imgSrc = "data:image/png;base64," . $bufferedQRImg;
+    return "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" />";
 }
 
 function wrapInline($tag, $closeTag, $content)

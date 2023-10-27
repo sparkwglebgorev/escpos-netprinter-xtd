@@ -30,11 +30,11 @@ class Code2DDataCmd extends DataCmd
         elseif ($this -> pH === null){
             $this -> pH = ord($char);
             //Calculate the length of fn+[parameters] - the spec starts counting AFTER cn
-            $this -> dataSize = $this -> pL + $this -> pH * 256;
+            $this->dataSize = $this->pL + $this->pH * 256;
             return true;
         }
         //Now interpret the subcommand
-        elseif ($this -> cn === null) {
+        elseif ($this->cn === null) {
             $this -> cn = ord($char);
 
             //If the command is known, assign subCommand with the interpreter class
@@ -52,13 +52,13 @@ class Code2DDataCmd extends DataCmd
             return true;
         }
         else  { //Process everything after cn
-            if ($this -> subCommand === null){
+            if ($this->subCommand === null){
                 //If subCommand is null, the command is not implemented. Stop all processing.
                 return false;
             }
             else {
                 //Send the fn and parameter data to the subcommand
-                return $this -> subCommand -> addChar($char);
+                return $this->subCommand->addChar($char);
             }
         }
     }
