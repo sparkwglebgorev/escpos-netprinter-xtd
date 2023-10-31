@@ -167,7 +167,7 @@ $head = wrapBlock("<head>", "</head>", $metaInfo);
 $body = wrapBlock("<body>", "</body>", $receipt);
 $html = wrapBlock("<html>", "</html>", array_merge($head, $body), false);
 echo "<!DOCTYPE html>\n" . implode("\n", $html) . "\n";
-error_log("asd". $targetFilename . " converted to HTML",0);
+error_log("'". $targetFilename . "' converted to HTML",0);
 
 function imgAsDataUrl($bufferedImg)
 {

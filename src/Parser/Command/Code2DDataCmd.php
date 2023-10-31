@@ -2,7 +2,9 @@
 namespace ReceiptPrintHq\EscposTools\Parser\Command;
 
 use ReceiptPrintHq\EscposTools\Parser\Command\DataCmd;
-use ReceiptPrintHq\EscposTools\Parser\Command\{QRcodeSubCommand, UnimplementedCode2DSubCommand,Code2DSubCommand} ;
+use ReceiptPrintHq\EscposTools\Parser\Command\QRcodeSubCommand;
+use ReceiptPrintHq\EscposTools\Parser\Command\UnimplementedCode2DSubCommand;
+use ReceiptPrintHq\EscposTools\Parser\Command\Code2DSubCommand;
 
 // This interprets the "GS ( k" commands. 
 // Official Description: Performs data processing related to 2-dimensional codes 
