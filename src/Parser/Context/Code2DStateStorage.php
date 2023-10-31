@@ -68,6 +68,8 @@ class Code2DStateStorage
     private int $qrErrorCorrectionLevel = EccLevel::L;
     private string $symbolStorage = '' ;
 
+    const NO_DATA_ERROR = "Cannot print 2D code: no data stored.";
+
     public function __construct(){ $this->reset();}
 
     //To implement the ESC @ reset.
@@ -204,7 +206,7 @@ class Code2DStateStorage
             return $qroutput;
         }
         else {
-            return "Cannot print 2D code: no data stored.";
+            return self::NO_DATA_ERROR;
         }
     }
     

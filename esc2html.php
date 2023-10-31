@@ -125,11 +125,20 @@ foreach ($commands as $cmd) {
                     $code2dStorage->fillSymbolStorage($sub->get_data());
                     break;
                 case 81:  //Print the QR code
-                    // TODO: what to do if the QR code data has not yet been sent?
                     $qrcodeURI = $code2dStorage->getQRCodeURI();
-                    $qrcodeData = $code2dStorage->getQRCodeData();
+
+                    if ($qrcodeURI == Code2DStatestorage::NO_DATA_ERROR){
+                        error_log("QR code print ordered before contents stored.",0);
+                        $imageData = base64_encode(file_get_contents('NoQR.JPG'));
+                        $imgSrc = 'data: '.mime_content_type('NoQR.JPG').';base64,'.$imageData;
+                        $qrcodeData = Code2dStatestorage::NO_DATA_ERROR;
+                        $outp[] = "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" />";
+                    }
+                    else {
+                        $qrcodeData = $code2dStorage->getQRCodeData();
+                        $outp[] = qrCodeAsDataUrl($qrcodeURI, $qrcodeData);
+                    }
                     
-                    $outp[] = qrCodeAsDataUrl($qrcodeURI, $qrcodeData);
                     break;
                 case 82:  //Transmit size information of symbol storage data.
                     # TODO: maybe implement by printing the info?
