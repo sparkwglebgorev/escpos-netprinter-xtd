@@ -65,17 +65,17 @@ class Code2DStateStorage
 {
     private int $qrCodeModel = 50;
     private int $qrModuleSize = 0;
-    private EccLevel $qrErrorCorrectionLevel = EccLevel::L;
+    private int $qrErrorCorrectionLevel = EccLevel::L;
     private string $symbolStorage = '' ;
 
     public function __construct(){ $this->reset();}
 
     //To implement the ESC @ reset.
     public function reset(){
-        $this->$qrCodeModel = 50;  //50 is the default.
-        $this->$qrModuleSize = 4;  //TODO: The specs call for a printer default.  Denso says 4 in their guide: https://www.qrcode.com/en/howto/cell.html
+        $this->qrCodeModel = 50;  //50 is the default.
+        $this->qrModuleSize = 4;  //TODO: The specs call for a printer default.  Denso says 4 in their guide: https://www.qrcode.com/en/howto/cell.html
         $this->qrErrorCorrectionLevel = EccLevel::L; //48 (low) is the default.
-        $this->symbolStorage = null;
+        $this->symbolStorage = '';
     }
 
     //To implement GS ( k <Function 165>,  this sets the QR code model.  
@@ -168,40 +168,45 @@ class Code2DStateStorage
 
     //To implement GS ( k <Function 181>, this outputs the QR code in png format as a base64 URI string
     public function getQRCodeURI(){
-        // TODO: if(  $this->symbolStorage) is empty, do nothing??
         // chillerlan/PHP-QRCode version
         // this library can only output Model 2 QR codes, but we will abuse it by setting the version
-        // 1) set the options
-        $qroptions = new QROptions;
-        $qroptions->outputType          = 'imagick';
-        $qroptions->imagickFormat       = 'png32'; // e.g. png32, jpeg, webp
-        $qroptions->quality = 100;
-        $qroptions->outputBase64 = true;  //To make render() output the URI string directly
 
-        //Set ecc level
-        $qroptions->eccLevel = $this->qrErrorCorrectionLevel ;   
+        if(strlen($this->symbolStorage) > 0){
+            // 1) set the options
+            $qroptions = new QROptions;
+            $qroptions->outputType          = 'imagick';
+            $qroptions->imagickFormat       = 'png32'; // e.g. png32, jpeg, webp
+            $qroptions->quality = 100;
+            $qroptions->outputBase64 = true;  //To make render() output the URI string directly
 
-        //Set the versions from the expected model
-        $qroptions->versionMin = 1;
-        switch ($this->qrCodeModel) {
-            case 49: 
-                //49 Selects model 1
-                $qroptions->versionMax = 14;
-                break;
-            case 50:
-                # 50 Selects model 2*/
-                $qroptions->versionMax = 40;
-                break;
-            case 51:
-                # TODO:  decide what to do if someone wants a MicroQR code
-                break;
-            }
-        // 2) generate the QR
-        $qroutput = (new QRCode($qroptions))->render($this->symbolStorage);
+            //Set ecc level
+            $qroptions->eccLevel = $this->qrErrorCorrectionLevel ;   
 
-        // 3) retourner l'URI contenant l'image PNG du code avec imagick
-        return $qroutput;
+            //Set the versions from the expected model
+            $qroptions->versionMin = 1;
+            switch ($this->qrCodeModel) {
+                case 49: 
+                    //49 Selects model 1
+                    $qroptions->versionMax = 14;
+                    break;
+                case 50:
+                    # 50 Selects model 2*/
+                    $qroptions->versionMax = 40;
+                    break;
+                case 51:
+                    # TODO:  decide what to do if someone wants a MicroQR code
+                    break;
+                }
+            // 2) generate the QR
+            $qroutput = (new QRCode($qroptions))->render($this->symbolStorage);
+
+            // 3) retourner l'URI contenant l'image PNG du code avec imagick
+            return $qroutput;
         }
+        else {
+            return "Cannot print 2D code: no data stored.";
+        }
+    }
     
     public function getQRCodeData(){
         return $this->symbolStorage;

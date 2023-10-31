@@ -5,8 +5,8 @@ use ReceiptPrintHq\EscposTools\Parser\Command\Command;
 
 class DataSubCmd extends Command
 {
-    private $data = "";
-    private $dataSize;
+    protected string $data = "";
+    protected int $dataSize;
 
     public function __construct($dataSize)
     {

@@ -8,14 +8,37 @@ use ReceiptPrintHq\EscposTools\Parser\Context\Code2DStateStorage;
 use ReceiptPrintHq\EscposTools\Parser\Parser;
 use ReceiptPrintHq\EscposTools\Parser\Context\InlineFormatting;
 
+$debugMode = false;
+$targetFilename = "";
+
+error_log("esc2html starting", 0);
 // Usage
-if (!isset($argv[1])) {
-    print("Usage: " . $argv[0] . " filename\n");
+if ($argc < 2) {
+    print("Usage: " . $argv[0] . " [--debug] filename \n"."zéro args");
     die();
 }
+else {
+    if ($argv[1]=='--debug'){ 
+        $debugMode = true;
+        if (!isset($argv[2])) {
+            print("Usage: " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
+            die();
+        }
+        else $targetFilename = $argv[2];
+        error_log("Debug mode enabled", 0);
+    }
+    else {  //First argument is not '--debug'
+        if(isset($argv[2])) { // But there is at least 2 args
+            print("Usage: " . $argv[0] . " [--debug] filename \n". $argc-1 . " arguments received\n");
+            die();
+        }
+        else $targetFilename = $argv[1]; //The only argument is the filename.
+    }
+}
+error_log("Target filename: " . $targetFilename . "", 0);
 
 // Load in a file
-$fp = fopen($argv[1], 'rb');
+$fp = fopen($targetFilename, 'rb');
 
 $parser = new Parser();
 $parser -> addFile($fp);
@@ -31,6 +54,8 @@ $skipLineBreak = false;
 $code2dStorage = new Code2DStateStorage();
 
 foreach ($commands as $cmd) {
+    if ($debugMode) error_log("". get_class($cmd) ."", 0); //Output the command class in the debug console
+
     if ($cmd -> isAvailableAs('InitializeCmd')) {
         $formatting = InlineFormatting::getDefault();
     }
@@ -40,6 +65,7 @@ foreach ($commands as $cmd) {
     if ($cmd -> isAvailableAs('TextContainer')) {
         // Add text to line
         // TODO could decode text properly from legacy code page to UTF-8 here.
+        #if ($debugMode) error_log("Text or unidentified command: '". $cmd->get_data() ."' ", 0);
         $spanContentText = $cmd -> getText();
         $lineHtml .= span($formatting, $spanContentText);
     }
@@ -78,7 +104,13 @@ foreach ($commands as $cmd) {
     }
     if ($cmd -> isAvailableAs('Code2DDataCmd')){
         $sub = $cmd -> subCommand();
-        if($sub->isAvaliableAs('QRcodeSubCommand')){
+        if ($debugMode)  {
+            error_log("Subcommand ". get_class($sub) ."", 0); //Output the subcommand class in the debug console
+            error_log("Function " . $sub->get_fn() ."",0);
+            error_log("Data size:". $sub->getDataSize() ."",0);
+            error_log("Data: '" . $sub->get_data() ."",0);
+        }
+        if($sub->isAvailableAs('QRcodeSubCommand')){ 
             switch ($sub->get_fn()) {
                 case 65:  //set model
                     $code2dStorage->setQRModel($sub->get_data());
@@ -126,6 +158,7 @@ $head = wrapBlock("<head>", "</head>", $metaInfo);
 $body = wrapBlock("<body>", "</body>", $receipt);
 $html = wrapBlock("<html>", "</html>", array_merge($head, $body), false);
 echo "<!DOCTYPE html>\n" . implode("\n", $html) . "\n";
+error_log("asd". $targetFilename . " converted to HTML",0);
 
 function imgAsDataUrl($bufferedImg)
 {

@@ -2,6 +2,7 @@
 namespace ReceiptPrintHq\EscposTools\Parser\Command;
 
 use ReceiptPrintHq\EscposTools\Parser\Command\DataCmd;
+use ReceiptPrintHq\EscposTools\Parser\Command\{QRcodeSubCommand, UnimplementedCode2DSubCommand,Code2DSubCommand} ;
 
 // This interprets the "GS ( k" commands. 
 // Official Description: Performs data processing related to 2-dimensional codes 
@@ -18,6 +19,7 @@ class Code2DDataCmd extends DataCmd
     private $pL = null;
     private $pH = null;
     private $cn = null;
+    private ?Code2DSubCommand $subCommand = null;
   
     //Process one command byte.  Return true if the byte is interpreted without error
     public function addChar($char)
@@ -40,26 +42,32 @@ class Code2DDataCmd extends DataCmd
             //If the command is known, assign subCommand with the interpreter class
             if($this->cn == 48){
                 //this is a PDF417 code command
+                $this->subCommand = new UnimplementedCode2DSubCommand($this->dataSize) ;
             }
             elseif($this->cn == 49){
                 //this is a QR code command
-                $this->subCommand = new QRcodeSubCommand($this->datasize);
+                $this->subCommand = new QRcodeSubCommand($this->dataSize);
             }
-            elseif(50 <= $this->cn <= 54) {
+            elseif($this->cn >= 50 && $this->cn <= 54) {
                 //this is one of the other valid codes
+                $this->subCommand = new UnimplementedCode2DSubCommand($this->dataSize) ;
             }
-            else return false; //This code is not a valid function. Stop all processing.
+            else{
+                error_log("Invalid QR code subfunction received: " . ord($char) . "",0);
+                $this->subCommand = new Code2DSubCommand($this->dataSize);  //fill sub with a placeholder
+            }
             return true;
         }
         else  { //Process everything after cn
-            if ($this->subCommand === null){
-                //If subCommand is null, the command is not implemented. Stop all processing.
-                return false;
-            }
-            else {
                 //Send the fn and parameter data to the subcommand
                 return $this->subCommand->addChar($char);
-            }
         }
     }
+
+    public function subCommand()
+    {
+        // TODO rename and take getSubCommand() name.
+        return $this -> subCommand;
+    }
+    
 }

@@ -1,10 +1,10 @@
 <?php
 namespace ReceiptPrintHq\EscposTools\Parser\Command;
 
-use ReceiptPrintHq\EscposTools\Parser\Command\DataSubCmd;
+use ReceiptPrintHq\EscposTools\Parser\Command\Code2DSubCommand;
 
 
-class QRcodeSubCommand extends DataSubCmd
+class QRcodeSubCommand extends Code2DSubCommand
 {
 
     private $fn = null;
@@ -31,8 +31,7 @@ class QRcodeSubCommand extends DataSubCmd
         return $this->fn;
     }
 
-    public function get_data(){
-        return $this->data;
+    public function isAvailableAs($interface){
+        return parent::isAvailableAs($interface);
     }
-
 }
