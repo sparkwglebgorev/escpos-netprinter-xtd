@@ -17,4 +17,6 @@ vendor/
 # other build files
 build/*
 *.phar
-.devcontainer/devcontainer.json
+.devcontainer/**
+.vscode/**
+composer.lock

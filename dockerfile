@@ -5,7 +5,7 @@ FROM php:8.1-cli
 #Voir:  https://github.com/mlocati/docker-php-extension-installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 RUN chmod +x /usr/local/bin/install-php-extensions
-RUN install-php-extensions imagick @composer mbstring
+RUN install-php-extensions mbstring @composer imagick
 
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
 ADD . /home/escpos-emu/
@@ -17,7 +17,7 @@ RUN apt-get install -y python3-flask
 RUN apt-get install -y python3-lxml
 
 #Installation de php-qrcode :requiert seulement imagick
-RUN composer require chillerlan/php-qrcode:"^4.3.4" --prefer-stable
+#RUN composer require chillerlan/php-qrcode:"^4.3.4" --prefer-stable
 RUN composer install
 RUN rm composer.json && rm composer.lock
 
