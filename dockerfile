@@ -1,5 +1,5 @@
-#On part de l'image Debian de php
-FROM php:8.1-cli
+#On part de l'image php-cli "latest" sur Debian
+FROM php:cli
 
 #On va utiliser l'utilitaire "install-php-extensions" au lieu de PECL car il marche mieux.
 #Voir:  https://github.com/mlocati/docker-php-extension-installer
@@ -18,7 +18,7 @@ RUN apt-get install -y python3-lxml
 
 #Installation HTML printer
 RUN composer install
-#RUN rm composer.json && rm composer.lock
+RUN rm composer.json && rm composer.lock
 
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py

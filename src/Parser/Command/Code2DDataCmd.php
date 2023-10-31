@@ -1,10 +1,10 @@
 <?php
 namespace ReceiptPrintHq\EscposTools\Parser\Command;
 
+use ReceiptPrintHq\EscposTools\Parser\Command\Code2DSubCommand;
 use ReceiptPrintHq\EscposTools\Parser\Command\DataCmd;
 use ReceiptPrintHq\EscposTools\Parser\Command\QRcodeSubCommand;
 use ReceiptPrintHq\EscposTools\Parser\Command\UnimplementedCode2DSubCommand;
-use ReceiptPrintHq\EscposTools\Parser\Command\Code2DSubCommand;
 
 // This interprets the "GS ( k" commands. 
 // Official Description: Performs data processing related to 2-dimensional codes 
@@ -49,6 +49,7 @@ class Code2DDataCmd extends DataCmd
             elseif($this->cn == 49){
                 //this is a QR code command
                 $this->subCommand = new QRcodeSubCommand($this->dataSize);
+                //$this->subCommand = new UnimplementedCode2DSubCommand($this->dataSize) ;
             }
             elseif($this->cn >= 50 && $this->cn <= 54) {
                 //this is one of the other valid codes

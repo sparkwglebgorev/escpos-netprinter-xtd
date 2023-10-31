@@ -37,6 +37,10 @@ else {
 }
 error_log("Target filename: " . $targetFilename . "", 0);
 
+if(!$debugMode) {
+    error_reporting(E_ERROR | E_PARSE);  //Deprecation warnings are unwanted except for debugging
+}
+
 // Load in a file
 $fp = fopen($targetFilename, 'rb');
 

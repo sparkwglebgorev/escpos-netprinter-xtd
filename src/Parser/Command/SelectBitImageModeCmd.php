@@ -13,6 +13,8 @@ class SelectBitImageModeCmd extends EscposCommand implements ImageContainer
 
     private $p2 = null;
 
+    private $height, $width;
+
     private $data = "";
 
     private $dataSize = null;

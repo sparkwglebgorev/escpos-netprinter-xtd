@@ -18,9 +18,6 @@ class StoreRasterFmtDataToPrintBufferGraphicsSubCmd extends DataSubCmd implement
     private $y1 = null;
     private $y2 = null;
     
-    private $data = "";
-    private $dataSize;
-
     public function __construct($dataSize)
     {
         $this -> dataSize = $dataSize - 8;

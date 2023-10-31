@@ -9,8 +9,8 @@ abstract class DataCmd extends EscposCommand
     private $p2 = null;
     private $arg1 = null;
     private $arg2 = null;
-    private $data = null;
-    private $dataSize = null;
+    protected $data = null;
+    protected $dataSize = null;
     private $subCommand = null;
     
     public function addChar($char)
