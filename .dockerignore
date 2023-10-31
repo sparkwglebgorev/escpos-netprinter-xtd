@@ -9,3 +9,4 @@ doc/**
 .travis.yml
 *.bin
 web/receipts/**
+composer.lock

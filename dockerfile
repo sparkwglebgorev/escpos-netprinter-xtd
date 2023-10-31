@@ -16,10 +16,9 @@ RUN apt-get update
 RUN apt-get install -y python3-flask 
 RUN apt-get install -y python3-lxml
 
-#Installation de php-qrcode :requiert seulement imagick
-#RUN composer require chillerlan/php-qrcode:"^4.3.4" --prefer-stable
+#Installation HTML printer
 RUN composer install
-RUN rm composer.json && rm composer.lock
+#RUN rm composer.json && rm composer.lock
 
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
