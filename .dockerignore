@@ -8,4 +8,5 @@ doc/**
 *.md
 .travis.yml
 web/receipts/**
+web/tmp/**
 composer.lock
