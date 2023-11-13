@@ -31,6 +31,6 @@ It should now accept prints on the default port(9100), and you can visualize it 
 ## Known issues
 This is still beta software for now, so it has known major defects:
 - It still uses the Flask development server, so it is unsafe for public networks.
-- The conversion to HTML does not do QR codes (see [issue #59](https://github.com/receipt-print-hq/escpos-tools/issues/59))
+- The conversion to HTML does not do QR codes correctly (see the 1.0-beta.2 release notes)
 - ~~This still has not been tested with success with a regular POS program (like the [Epson utilities](https://download.epson-biz.com/modules/pos/))~~ It works with simpler drivers, for example for the MUNBYN ITPP047 printers.
 
