@@ -54,12 +54,26 @@ case ${#} in
       5)
          # backend needs to read from stdin if number of arguments is 5
          # NOTE: the CUPS backend programming directives state that temporary files should be created in the directory specified by the "TMPDIR" environment variable
+         echo "DEBUG:  Printing from stdin"     1>&2
          cat - > ${TMPDIR}receipt.bin
-         php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:}  
+         if [ "$?" -ne "0" ]; 
+         then
+            echo "CRIT:   Cannot write to ${TMPDIR}receipt.bin"  1>&2
+         else 
+            #php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:}  
+            php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${TMPDIR}/test.html 
+            if [ "$?" != "0" ]; then
+               echo "ERROR:   Error while printing ${TMPDIR}receipt.bin"  1>&2
+            fi
+         fi
          ;;
       6)
          # backend needs to read from file if number of arguments is 6
-         php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:}  
+         #php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:}  
+         php /home/escpos-emu/esc2html.php ${6} 1>/home/escpos-emu/web/receipts/test.html  
+         if [ "$?" != "0" ]; then
+            echo "ERROR:   Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
+         fi
          ;;
       1|2|3|4|*)
          # these cases are unsupported

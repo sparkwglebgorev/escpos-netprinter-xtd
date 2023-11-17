@@ -9,6 +9,7 @@ RUN install-php-extensions mbstring @composer imagick
 
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
 ADD . /home/escpos-emu/
+RUN rm -rf web
 ADD --chmod=0555 cups/esc2file.sh /usr/lib/cups/backend/esc2file
 WORKDIR /home/escpos-emu/
 
@@ -19,6 +20,20 @@ RUN apt-get install -y python3-lxml
 
 #Installation de CUPS
 RUN apt-get install -y cups
+ADD cups/cups-files.conf /etc/cups/cups-files.conf
+# On passe en loglevel debug2!
+ADD cups/cupsd.conf /etc/cups/cupsd.conf  
+RUN groupadd cups-admins
+RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
+RUN echo "cupsadmin:123456" | chpasswd
+COPY --chown=lp:lp --chmod=666 web/. /home/escpos-emu/web
+
+# "Device URI" for CUPS
+ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
+# Temporary directory for CUPS
+#ENV TMPDIR=/home/escpos-emu/web/tmp
+# Give CUPS access to directories
+
 
 #Configuration de CUPS   ATTENTION: on rend CUPS complètement ouvert de cette façon! 
 RUN /usr/sbin/cupsd \
@@ -26,7 +41,7 @@ RUN /usr/sbin/cupsd \
   && cupsctl --remote-admin --remote-any --share-printers \
   && kill $(cat /var/run/cups/cupsd.pid)
 RUN rm /etc/cups/snmp.conf
-
+#RUN rm /home/escpos-emu/cups/cups-files.conf
 
 #Installation HTML printer
 RUN composer install
@@ -35,19 +50,17 @@ RUN rm composer.json && rm composer.lock
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
+ENV FLASK_RUN_PORT=80
+#This port is for the Jetdirect protocol.
 ENV PRINTER_PORT=9100  
-
-# "Device URI" for CUPS
-ENV DEVICE_URI=esc2file:/home/escpos-emu/web/tmp/receipt.bin
-# Temporary directory for CUPS
-ENV TMPDIR=/home/escpos-emu/web/tmp/
 
 # To activate the Flask debug mode, set at True (case-sensitive)
 ENV FLASK_RUN_DEBUG=false  
 
 EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
+#Expose the lpd port
+EXPOSE 515
 #Expose the CUPS admin port (temporary?)
 EXPOSE 631
 

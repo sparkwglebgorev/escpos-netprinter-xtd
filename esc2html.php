@@ -15,14 +15,14 @@ error_log("esc2html starting", 0);
 // Usage
 if ($argc < 2) {
     print("Usage: " . $argv[0] . " [--debug] filename \n"."zéro args");
-    die();
+    exit(1);
 }
 else {
     if ($argv[1]=='--debug'){ 
         $debugMode = true;
         if (!isset($argv[2])) {
             print("Usage: " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
-            die();
+            exit(1);
         }
         else $targetFilename = $argv[2];
         error_log("Debug mode enabled", 0);
@@ -30,7 +30,7 @@ else {
     else {  //First argument is not '--debug'
         if(isset($argv[2])) { // But there is at least 2 args
             print("Usage: " . $argv[0] . " [--debug] filename \n". $argc-1 . " arguments received\n");
-            die();
+            exit(1);
         }
         else $targetFilename = $argv[1]; //The only argument is the filename.
     }
@@ -43,6 +43,10 @@ if(!$debugMode) {
 
 // Load in a file
 $fp = fopen($targetFilename, 'rb');
+if ( !$fp ) {
+    error_log("File ". $targetFilename . "not found.");
+    exit(1);
+}  
 
 $parser = new Parser();
 $parser -> addFile($fp);
@@ -172,6 +176,7 @@ $body = wrapBlock("<body>", "</body>", $receipt);
 $html = wrapBlock("<html>", "</html>", array_merge($head, $body), false);
 echo "<!DOCTYPE html>\n" . implode("\n", $html) . "\n";
 error_log("'". $targetFilename . "' converted to HTML",0);
+
 
 function imgAsDataUrl($bufferedImg)
 {
