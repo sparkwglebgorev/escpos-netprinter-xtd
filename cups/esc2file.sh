@@ -28,6 +28,7 @@ echo "INFO: jobcopies=${jobcopies}"   1>&2
 echo "INFO: joboptions=${joboptions}" 1>&2
 echo "INFO: jobfile=${jobfile}"       1>&2
 echo "INFO: printtime=${printtime}"   1>&2
+echo "DEBUG:   Executing as ${USER}"  1>&2
 
 #echo "EMERG:  This is a \"emergency\" level log message" 1>&2
 #echo "ALERT:  This is a \"alert\" level log message"     1>&2
@@ -58,19 +59,18 @@ case ${#} in
          cat - > ${TMPDIR}receipt.bin
          if [ "$?" -ne "0" ]; 
          then
-            echo "CRIT:   Cannot write to ${TMPDIR}receipt.bin"  1>&2
+            echo "ERROR:   Cannot write to ${TMPDIR}receipt.bin"  1>&2
          else 
-            #php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:}  
-            php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${TMPDIR}/test.html 
+            php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
             if [ "$?" != "0" ]; then
-               echo "ERROR:   Error while printing ${TMPDIR}receipt.bin"  1>&2
+               echo "ERROR:   Error $? while printing ${TMPDIR}receipt.bin to ${DEVICE_URI#esc2file:}"  1>&2
             fi
          fi
          ;;
       6)
          # backend needs to read from file if number of arguments is 6
-         #php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:}  
-         php /home/escpos-emu/esc2html.php ${6} 1>/home/escpos-emu/web/receipts/test.html  
+         echo "DEBUG:  Printing from file ${6}"     1>&2
+         php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
          if [ "$?" != "0" ]; then
             echo "ERROR:   Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
          fi
