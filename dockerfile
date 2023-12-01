@@ -21,8 +21,10 @@ RUN apt-get install -y python3-lxml
 #Installation de CUPS
 RUN apt-get install -y cups
 ADD cups/cups-files.conf /etc/cups/cups-files.conf
-# On passe en loglevel debug2!
+
+#Configure CUPS
 ADD cups/cupsd.conf /etc/cups/cupsd.conf  
+#Manage CUPS-specific users and permissions
 RUN groupadd cups-admins
 RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
 RUN echo "cupsadmin:123456" | chpasswd

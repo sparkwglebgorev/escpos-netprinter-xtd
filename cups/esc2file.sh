@@ -60,19 +60,24 @@ case ${#} in
          if [ "$?" -ne "0" ]; 
          then
             echo "ERROR:   Cannot write to ${TMPDIR}receipt.bin"  1>&2
+            exit 1 #Send an error to CUPS to signal printing failure
          else 
             php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
             if [ "$?" != "0" ]; then
                echo "ERROR:   Error $? while printing ${TMPDIR}receipt.bin to ${DEVICE_URI#esc2file:}"  1>&2
+               exit 1  #Send an error to CUPS to signal printing failure
             fi
          fi
          ;;
       6)
          # backend needs to read from file if number of arguments is 6
          echo "DEBUG:  Printing from file ${6}"     1>&2
-         php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+         # php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+         /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/test.html 2>>${TMPDIR}/esc2html_log
          if [ "$?" != "0" ]; then
-            echo "ERROR:   Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
+            #echo "ERROR:  Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
+            echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}test.html"  1>&2
+            exit 1 #Send an error to CUPS to signal printing failure
          fi
          ;;
       1|2|3|4|*)
@@ -89,7 +94,7 @@ echo  1>&2
 
 # we reach this line only if we actually "printed something"
 echo "NOTICE: processed Job ${jobid} to file ${DEVICE_URI#esc2file:}" 1>&2
-echo "NOTICE: End of \"${0}\" run...."                             1>&2
+echo "NOTICE: End of \"${0}\" run."                             1>&2
 echo "NOTICE: ---------------------------------------------------" 1>&2
 echo  1>&2
 exit 0
