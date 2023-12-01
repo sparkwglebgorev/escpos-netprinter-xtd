@@ -56,28 +56,28 @@ case ${#} in
          # backend needs to read from stdin if number of arguments is 5
          # NOTE: the CUPS backend programming directives state that temporary files should be created in the directory specified by the "TMPDIR" environment variable
          echo "DEBUG:  Printing from stdin"     1>&2
-         cat - > ${TMPDIR}receipt.bin
+         cat - > ${TMPDIR}/receipt.bin
          if [ "$?" -ne "0" ]; 
          then
-            echo "ERROR:   Cannot write to ${TMPDIR}receipt.bin"  1>&2
-            exit 1 #Send an error to CUPS to signal printing failure
+            echo "ERROR:   Cannot write to ${TMPDIR}/receipt.bin"  1>&2
+            exit 51 #Send an error to CUPS to signal printing failure
          else 
-            php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
-            if [ "$?" != "0" ]; then
+            /usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+            if [ "$?" -ne "0" ]; then
                echo "ERROR:   Error $? while printing ${TMPDIR}receipt.bin to ${DEVICE_URI#esc2file:}"  1>&2
-               exit 1  #Send an error to CUPS to signal printing failure
+               exit 52  #Send an error to CUPS to signal printing failure
             fi
          fi
          ;;
       6)
          # backend needs to read from file if number of arguments is 6
          echo "DEBUG:  Printing from file ${6}"     1>&2
-         # php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+         #/usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
          /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/test.html 2>>${TMPDIR}/esc2html_log
-         if [ "$?" != "0" ]; then
-            #echo "ERROR:  Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
-            echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}test.html"  1>&2
-            exit 1 #Send an error to CUPS to signal printing failure
+         if [ "$?" -ne "0" ]; then
+            echo "ERROR:  Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
+            #echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}/test.html"  1>&2
+            exit 61 #Send an error to CUPS to signal printing failure
          fi
          ;;
       1|2|3|4|*)

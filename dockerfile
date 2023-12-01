@@ -24,6 +24,7 @@ ADD cups/cups-files.conf /etc/cups/cups-files.conf
 
 #Configure CUPS
 ADD cups/cupsd.conf /etc/cups/cupsd.conf  
+
 #Manage CUPS-specific users and permissions
 RUN groupadd cups-admins
 RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
@@ -32,16 +33,12 @@ COPY --chown=lp:lp --chmod=666 web/. /home/escpos-emu/web
 
 # "Device URI" for CUPS
 ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
-# Temporary directory for CUPS
-#ENV TMPDIR=/home/escpos-emu/web/tmp
-# Give CUPS access to directories
-
 
 #Configuration de CUPS   ATTENTION: on rend CUPS complètement ouvert de cette façon! 
-RUN /usr/sbin/cupsd \
-  && while [ ! -f /var/run/cups/cupsd.pid ]; do sleep 1; done \
-  && cupsctl --remote-admin --remote-any --share-printers \
-  && kill $(cat /var/run/cups/cupsd.pid)
+# RUN /usr/sbin/cupsd \
+#   && while [ ! -f /var/run/cups/cupsd.pid ]; do sleep 1; done \
+#   && cupsctl --remote-admin --remote-any --share-printers \
+#   && kill $(cat /var/run/cups/cupsd.pid)
 RUN rm /etc/cups/snmp.conf
 #RUN rm /home/escpos-emu/cups/cups-files.conf
 
