@@ -20,3 +20,4 @@ build/*
 .devcontainer/**
 .vscode/**
 composer.lock
+cups/*.tar.gz

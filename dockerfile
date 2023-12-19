@@ -42,9 +42,9 @@ ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
 #   && cupsctl --remote-admin --remote-any --share-printers \
 #   && kill $(cat /var/run/cups/cupsd.pid)
 RUN rm /etc/cups/snmp.conf
-#RUN rm /home/escpos-emu/cups/cups-files.conf
+RUN rm /home/escpos-emu/cups/cups-files.conf
 
-#Installation HTML printer
+#Installation HTML converter
 RUN composer install
 RUN rm composer.json && rm composer.lock
 
