@@ -29,6 +29,7 @@ echo "INFO: joboptions=${joboptions}" 1>&2
 echo "INFO: jobfile=${jobfile}"       1>&2
 echo "INFO: printtime=${printtime}"   1>&2
 echo "DEBUG:   Executing as ${USER}"  1>&2
+echo "NOTICE: processing Job ${jobid}" 1>&2
 
 #echo "EMERG:  This is a \"emergency\" level log message" 1>&2
 #echo "ALERT:  This is a \"alert\" level log message"     1>&2
@@ -62,7 +63,8 @@ case ${#} in
             echo "ERROR:   Cannot write to ${TMPDIR}/receipt.bin"  1>&2
             exit 51 #Send an error to CUPS to signal printing failure
          else 
-            /usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+            #/usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
+            /usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
             if [ "$?" -ne "0" ]; then
                echo "ERROR:   Error $? while printing ${TMPDIR}receipt.bin to ${DEVICE_URI#esc2file:}"  1>&2
                exit 52  #Send an error to CUPS to signal printing failure
@@ -73,11 +75,22 @@ case ${#} in
          # backend needs to read from file if number of arguments is 6
          echo "DEBUG:  Printing from file ${6}"     1>&2
          #/usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${DEVICE_URI#esc2file:} 2>>/home/escpos-emu/web/tmp/esc2html_log
-         /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/test.html 2>>${TMPDIR}/esc2html_log
+         /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
          if [ "$?" -ne "0" ]; then
             echo "ERROR:  Error $? while printing ${6} to ${DEVICE_URI#esc2file:}"  1>&2
             #echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}/test.html"  1>&2
             exit 61 #Send an error to CUPS to signal printing failure
+         fi
+         #Call the web site to move the html file to the web directory
+         response=$(/usr/bin/curl -s http://localhost:${FLASK_RUN_PORT}/newReceipt)
+         if [ "$?" -eq "0" ]; then
+            if echo "$response" | grep -q "OK"; then
+               echo "File copy returned OK"
+            else
+               echo "File copy did not return OK"
+            fi
+         else
+            echo "ERROR:  Error $? while calling the web site to move the ${TMPDIR}/esc2html.html to the web directory"  1>&2
          fi
          ;;
       1|2|3|4|*)

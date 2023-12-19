@@ -1,3 +1,7 @@
 #!/bin/bash
+
+# Start CUPS
 /usr/sbin/cupsd
-python3 $FLASK_APP
+
+# Start Flask
+python3 ${FLASK_APP}

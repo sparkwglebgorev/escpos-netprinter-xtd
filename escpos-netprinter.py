@@ -7,8 +7,11 @@ from pathlib import PurePath
 from lxml import html, etree
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import shutil
+
 import socket, threading 
 import socketserver
+
 
 #Network ESC/pos printer server
 class ESCPOSServer(socketserver.TCPServer):
@@ -80,24 +83,29 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             #print(recu.stdout, flush=True)
 
             heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
-
-            recuConvert:etree.ElementTree  = html.fromstring(recu.stdout)
-
-            theHead:etree.Element = recuConvert.head
-            newTitle = etree.Element("title")
-            newTitle.text = "Reçu imprimé le {}".format(heureRecept.strftime('%d %b %Y @ %X%Z'))
-            theHead.append(newTitle)
+            recuConvert = self.add_html_title(heureRecept, recu.stdout)
 
             #print(etree.tostring(theHead), flush=True)
 
             try:
                 nouveauRecu = open(PurePath('web', 'receipts', 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X%Z'))), mode='wt')
                 #Écrire le reçu dans le fichier.
-                nouveauRecu.write(html.tostring(recuConvert).decode())
+                nouveauRecu.write(recuConvert)
                 nouveauRecu.close()
 
             except OSError as err:
                 print("File creation error:", err.errno, flush=True)
+
+    def add_html_title(self,heureRecept:datetime, recu:str)->str:
+        
+        recuConvert:etree.ElementTree  = html.fromstring(recu)
+
+        theHead:etree.Element = recuConvert.head
+        newTitle = etree.Element("title")
+        newTitle.text = "Reçu imprimé le {}".format(heureRecept.strftime('%d %b %Y @ %X%Z'))
+        theHead.append(newTitle)
+
+        return html.tostring(recuConvert).decode()
                         
                     
 
@@ -118,10 +126,46 @@ def list_receipts():
 @app.route("/recus/<string:filename>")
 def show_receipt(filename):
     return send_file(PurePath('web', 'receipts', filename))
+
+@app.route("/newReceipt")
+def publish_receipt():
+    """ Get the receipt from the CUPS temp directory and publish it in the web/receipts directory and add the corresponding log to our permanent logfile"""
+    heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
+    #NOTE: on set dans cups-files.conf le répertoire TempDir:   
+    #obtenir le répertoire temporaire de CUPS de cups-files.conf
+    source_dir=PurePath('/var', 'spool', 'cups', 'tmp')
+    
+    # specify your source file and destination file paths
+    source_file = source_dir.joinpath('esc2html.html')
+    destination_dir = PurePath('web', 'receipts')
+
+    # specify your new filename
+    new_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X%Z'))
+
+    # create the full destination path with the new filename
+    destination_file = destination_dir / new_filename
+
+    # use shutil.copy2() to copy the file
+    shutil.copy2(source_file, destination_file)
+
+    #Load the log from /var/spool/cups/tmp/esc2html_log and append it in web/tmp/esc2html_log
+    log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
+    source_log = open(source_dir.joinpath('esc2html_log'), mode='rt')
+    log.write(source_log.read())
+    log.close()
+    #remove the contents from the source log
+    source_log.close()
+    source_log = open(source_dir.joinpath('esc2html_log'), mode='wt')
+    source_log.write('')
+    source_log.close()
+
+    #send an http acknowledgement
+    return "OK"
+
     
 
 def launchPrintServer(printServ:ESCPOSServer):
-    #Recevoir des connexions, une à la fois, pour l'éternité.  
+    #Recevoir des connexions, une à la fois, pour l'éternité.  Émule le protocle HP JetDirect
     """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
         NOTE:  il est possible que ce soit le comportement attendu de n'accepter qu'une connection à la fois.  Voir p.6 de la spécification d'un module Ethernet
                 à l'adresse suivante:  https://files.cyberdata.net/assets/010748/ETHERNET_IV_Product_Guide_Rev_D.pdf  """
@@ -139,9 +183,9 @@ if __name__ == "__main__":
 
     #Lancer le service d'impression TCP
     with ESCPOSServer((host, int(printPort)), ESCPOSHandler) as printServer:
-        t = threading.Thread(target=launchPrintServer, args=[printServer])
-        t.daemon = True
-        t.start()
+        # t = threading.Thread(target=launchPrintServer, args=[printServer])
+        # t.daemon = True
+        # t.start()
     
         #Lancer l'application Flask
         if debugmode == 'True': 
@@ -149,4 +193,4 @@ if __name__ == "__main__":
         else:
             startDebug:bool = False
 
-        app.run(host=host, port=int(port), debug=startDebug, use_reloader=False) #On empêche le reloader parce qu'il repart "main" au complet et le service d'imprimante n'est pas conçu pour ça.
+        app.run(host=host, port=int(port), debug=startDebug, use_reloader=False) #On empêche le reloader parce qu'il repart "main" au complet et le service d'imprimante n'est pas conçue pour ça.

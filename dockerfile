@@ -1,5 +1,7 @@
 #On part de l'image php-cli "latest" sur Debian
-FROM php:cli
+#FROM php:cli
+#Contournement temporaire:  imagick a un problème, mais pas sur php8.2
+FROM php:8.2-cli
 
 #On va utiliser l'utilitaire "install-php-extensions" au lieu de PECL car il marche mieux.
 #Voir:  https://github.com/mlocati/docker-php-extension-installer
@@ -29,7 +31,7 @@ ADD cups/cupsd.conf /etc/cups/cupsd.conf
 RUN groupadd cups-admins
 RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
 RUN echo "cupsadmin:123456" | chpasswd
-COPY --chown=lp:lp --chmod=666 web/. /home/escpos-emu/web
+#COPY --chown=lp:lp --chmod=666 web/. /home/escpos-emu/web
 
 # "Device URI" for CUPS
 ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
@@ -64,6 +66,6 @@ EXPOSE 515
 EXPOSE 631
 
 # Démarrer le serveur Flask et le serveur d'impression
-CMD ["/usr/sbin/cupsd", "-f"]
+#CMD ["/usr/sbin/cupsd", "-f"]
 #CMD python3 ${FLASK_APP}
-#CMD ["/bin/bash","-c","./start.sh"]
+CMD ["/bin/bash","-c","./start.sh"]
