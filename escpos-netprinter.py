@@ -1,6 +1,7 @@
 from flask import Flask, send_file, render_template
 from os import getenv, listdir
 from os.path import splitext
+from io import BufferedWriter
 import subprocess
 from subprocess import CompletedProcess
 from pathlib import PurePath
@@ -33,7 +34,8 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     # Receive the print data and dump it in a file.
     def handle(self):
         print (f"Address connected: {self.client_address}", flush=True)
-        binfile = open("reception.bin", "wb")
+        bin_filename = PurePath('web', 'tmp', "reception.bin")
+        binfile = open(bin_filename, "wb")
 
         #Read everything until we get EOF 
         indata:bytes = b''
@@ -65,13 +67,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             print ("Data received, signature sent.", flush=True)
             
             #traiter le fichier reception.bin pour en faire un HTML
-            self.print_toHTML("reception.bin")
+            self.print_toHTML(binfile, bin_filename)
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
-    def print_toHTML(self, binfilename:str):
+    def print_toHTML(self, binfile:BufferedWriter, filename:PurePath):
 
-        print("Impression de ", binfilename)
-        recu:CompletedProcess = subprocess.run(["php", "esc2html.php", binfilename], capture_output=True, text=True )
+        print("Printing ", binfile.name)
+        recu:CompletedProcess = subprocess.run(["php", "esc2html.php", filename.as_posix()], capture_output=True, text=True )
         if recu.returncode != 0:
             print(f"Error while converting receipt: {recu.returncode}")
             print("Error output:")
@@ -82,8 +84,12 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             print (f"Receipt decoded", flush=True)
             #print(recu.stdout, flush=True)
 
+            #Ajouter un titre au reçu
             heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
             recuConvert = self.add_html_title(heureRecept, recu.stdout)
+
+            #Ajouter un pied de page au reçu
+            recuConvert = self.add_html_footer(recuConvert)
 
             #print(etree.tostring(theHead), flush=True)
 
@@ -97,7 +103,6 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 print("File creation error:", err.errno, flush=True)
 
     def add_html_title(self,heureRecept:datetime, recu:str)->str:
-        
         recuConvert:etree.ElementTree  = html.fromstring(recu)
 
         theHead:etree.Element = recuConvert.head
@@ -106,7 +111,16 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         theHead.append(newTitle)
 
         return html.tostring(recuConvert).decode()
-                        
+    
+    def add_html_footer(self, recu:str)->str:
+        recuConvert:etree.ElementTree  = html.fromstring(recu)
+        theBody:etree.Element = recuConvert.body
+        
+        newFooter = etree.Element("footer")
+        newFooter.text = "Retour à la <a href='/recus'>Liste des reçus</a>"
+        theBody.append(newFooter)
+
+        return html.tostring(recuConvert).decode()                   
                     
 
 app = Flask(__name__)
@@ -132,7 +146,7 @@ def publish_receipt():
     """ Get the receipt from the CUPS temp directory and publish it in the web/receipts directory and add the corresponding log to our permanent logfile"""
     heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
     #NOTE: on set dans cups-files.conf le répertoire TempDir:   
-    #obtenir le répertoire temporaire de CUPS de cups-files.conf
+    #Extraire le répertoire temporaire de CUPS de cups-files.conf
     source_dir=PurePath('/var', 'spool', 'cups', 'tmp')
     
     # specify your source file and destination file paths
@@ -183,9 +197,9 @@ if __name__ == "__main__":
 
     #Lancer le service d'impression TCP
     with ESCPOSServer((host, int(printPort)), ESCPOSHandler) as printServer:
-        # t = threading.Thread(target=launchPrintServer, args=[printServer])
-        # t.daemon = True
-        # t.start()
+        t = threading.Thread(target=launchPrintServer, args=[printServer])
+        t.daemon = True
+        t.start()
     
         #Lancer l'application Flask
         if debugmode == 'True': 
