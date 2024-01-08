@@ -132,7 +132,7 @@ class Code2DStateStorage
     //  Model 2:  4,296 alphanumeric chars (V40 at low correction level)
     //  Micro-QR:  21 alphanumeric chars  https://www.qrcode.com/en/codes/microqr.html
     public function fillSymbolStorage($data){
-        error_log("Filling symbol storage with data",0);  #TODO: remove this debug line
+        error_log("Filling symbol storage with QR data",0);  
         /*$maxDataBits = 0;
         switch ($this->qrCodeModel) {
             case 49:

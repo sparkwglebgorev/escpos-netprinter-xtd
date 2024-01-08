@@ -9,38 +9,32 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 RUN chmod +x /usr/local/bin/install-php-extensions
 RUN install-php-extensions mbstring @composer imagick
 
+#Install Flask
+RUN apt-get update
+RUN apt-get install -y python3-flask 
+RUN apt-get install -y python3-lxml
+
+#Install CUPS
+RUN apt-get install -y cups
+
+#Manage CUPS-specific users and permissions
+RUN groupadd cups-admins
+RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
+RUN echo "cupsadmin:123456" | chpasswd
+
+# "Device URI" for CUPS
+ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
+
+#Installation de l'émulateur d'imprimante
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
 ADD . /home/escpos-emu/
 RUN rm -rf web
 ADD --chmod=0555 cups/esc2file.sh /usr/lib/cups/backend/esc2file
 WORKDIR /home/escpos-emu/
 
-#Installation de Flask
-RUN apt-get update
-RUN apt-get install -y python3-flask 
-RUN apt-get install -y python3-lxml
-
-#Installation de CUPS
-RUN apt-get install -y cups
-ADD cups/cups-files.conf /etc/cups/cups-files.conf
-
 #Configure CUPS
-ADD cups/cupsd.conf /etc/cups/cupsd.conf  
-
-#Manage CUPS-specific users and permissions
-RUN groupadd cups-admins
-RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
-RUN echo "cupsadmin:123456" | chpasswd
-#COPY --chown=lp:lp --chmod=666 web/. /home/escpos-emu/web
-
-# "Device URI" for CUPS
-ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
-
-#Configuration de CUPS   ATTENTION: on rend CUPS complètement ouvert de cette façon! 
-# RUN /usr/sbin/cupsd \
-#   && while [ ! -f /var/run/cups/cupsd.pid ]; do sleep 1; done \
-#   && cupsctl --remote-admin --remote-any --share-printers \
-#   && kill $(cat /var/run/cups/cupsd.pid)
+ADD cups/cupsd.conf /etc/cups/cupsd.conf 
+ADD cups/cups-files.conf /etc/cups/cups-files.conf 
 RUN rm /etc/cups/snmp.conf
 RUN rm /home/escpos-emu/cups/cups-files.conf
 
@@ -51,7 +45,8 @@ RUN rm composer.json && rm composer.lock
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=80
+#Web interface port
+ENV FLASK_RUN_PORT=80  
 #This port is for the Jetdirect protocol.
 ENV PRINTER_PORT=9100  
 

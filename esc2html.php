@@ -136,21 +136,17 @@ foreach ($commands as $cmd) {
                     $qrcodeURI = $code2dStorage->getQRCodeURI();
 
                     if ($qrcodeURI == Code2DStatestorage::NO_DATA_ERROR){
-                        error_log("QR code print ordered before contents stored.",0);
-                        $imagefile = file_get_contents('NoQR.JPG');
+                        error_log("DEBUG:  QR code print ordered before contents stored.",0);
+                        $imagefile = file_get_contents(__DIR__.'/NoQR.JPG');
                         if ($imagefile === false) {
                             #To make the netprinter work, provide a full path to the image file
-                            $imagefile = file_get_contents('/home/escpos-emu/NoQR.JPG'); 
-                            if ($imagefile === false) {
-                                error_log("NoQR.JPG not found.",0);
-                            }
-                            else {
-                                $imageData = base64_encode($imagefile);
-                                $imgSrc = 'data: '.mime_content_type('NoQR.JPG').';base64,'.$imageData;}
+                            error_log("ERROR:  NoQR image not found in ".__DIR__, 0);
+                            $imageData = '';
+                            $imgSrc = '';
                         }
                         else {
                             $imageData = base64_encode($imagefile);
-                            $imgSrc = 'data: '.mime_content_type('NoQR.JPG').';base64,'.$imageData;
+                            $imgSrc = 'data:image/jpeg;base64,' . $imageData;
                         }
                         $qrcodeData = Code2dStatestorage::NO_DATA_ERROR;
                         $outp[] = "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" />";
