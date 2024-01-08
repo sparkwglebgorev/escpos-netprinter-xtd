@@ -1,7 +1,7 @@
 ESC/POS virtual network printer 
 ----------
 
-This is a very simple container-based ESC/POS network printer, that transforms the printed material in HTML pages and makes them avaliable in a web interface.
+This is a container-based ESC/POS network printer, that transforms the printed material in HTML pages and makes them avaliable in a web interface.
 
 ## Limits
 This docker image is not to be exposed on a public network (see [known issues](#known-issues))
@@ -24,9 +24,9 @@ docker build -t escpos-netprinter:beta .
 
 To run the resulting container:
 ```bash
-docker run -d --rm --cpus 1.8 -p 5000:5000/tcp -p 9100:9100/tcp escpos-netprinter:beta
+docker run -d --rm --cpus 1.8 -p 515:515/tcp -p 631:631/tcp -p 80:80/tcp -p 9100:9100/tcp escpos-netprinter:beta
 ```
-It should now accept prints on the default port(9100), and you can visualize it with the web application at port 5000.  I have put a CPU usage limit as a safety, because it completely locked up my two-core PhotonOS host twice.
+It should now accept prints by JetDirect on the default port(9100) and by lpd on the default port(515), and you can visualize it with the web application at port 80.  
 
 ## Known issues
 This is still beta software for now, so it has known major defects:

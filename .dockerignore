@@ -10,3 +10,7 @@ doc/**
 web/receipts/**
 web/tmp/**
 composer.lock
+esc2text.php
+escimages.php
+LICENSE**
+README**
