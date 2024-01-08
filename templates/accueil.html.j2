@@ -7,15 +7,15 @@
 <h1>État de l'imprimante:</h1>
 <ul>
     <li>En ligne</li>
-    <li>Adresses source acceptées: {{host}}</li>
-    <li>Adresse de cette imprimante: {{request.environ['SERVER_ADDR']}}</li>
-    <li>Port d'impression: {{port}}</li>
+    <li>Adresse de cette imprimante: {{host}}</li>
+    <li>Ports d'impression: {{jetDirectPort}} (Jetdirect), 515 (lpd)</li>
     {%if debug == 'True'%}
         <li><b style="color:#8B0000">Mode débogage activé</b></li>
     {%endif%}
 </ul>
  
- <a href="/recus">Consulter les reçus imprimés</a>
+ <a href="/recus">Consulter la liste des reçus imprimés</a>
 
+{% include 'footer.html' %}
 </body>
 </html>

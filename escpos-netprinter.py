@@ -1,16 +1,15 @@
-from flask import Flask, send_file, render_template
-from os import getenv, listdir
-from os.path import splitext
+from flask import Flask, redirect, render_template, request, url_for
+from os import getenv
 from io import BufferedWriter
+import csv
 import subprocess
 from subprocess import CompletedProcess
 from pathlib import PurePath
 from lxml import html, etree
 from datetime import datetime
 from zoneinfo import ZoneInfo
-import shutil
 
-import socket, threading 
+import threading 
 import socketserver
 
 
@@ -70,10 +69,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             self.print_toHTML(binfile, bin_filename)
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
-    def print_toHTML(self, binfile:BufferedWriter, filename:PurePath):
+    def print_toHTML(self, binfile:BufferedWriter, bin_filename:PurePath):
 
         print("Printing ", binfile.name)
-        recu:CompletedProcess = subprocess.run(["php", "esc2html.php", filename.as_posix()], capture_output=True, text=True )
+        recu:CompletedProcess = subprocess.run(["php", "esc2html.php", bin_filename.as_posix()], capture_output=True, text=True )
         if recu.returncode != 0:
             print(f"Error while converting receipt: {recu.returncode}")
             print("Error output:")
@@ -88,21 +87,24 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
             recuConvert = self.add_html_title(heureRecept, recu.stdout)
 
-            #Ajouter un pied de page au reçu
-            recuConvert = self.add_html_footer(recuConvert)
-
             #print(etree.tostring(theHead), flush=True)
 
             try:
-                nouveauRecu = open(PurePath('web', 'receipts', 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X%Z'))), mode='wt')
-                #Écrire le reçu dans le fichier.
-                nouveauRecu.write(recuConvert)
-                nouveauRecu.close()
+                #Créer un nouveau fichier avec le nom du reçu
+                html_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X.%f%Z'))
+                with open(PurePath('web', 'receipts', html_filename), mode='wt') as nouveauRecu:
+                    #Écrire le reçu dans le fichier.
+                    nouveauRecu.write(recuConvert)
+                    nouveauRecu.close()
+                    #Ajouter le reçu à la liste des reçus
+                    self.add_receipt_to_directory(html_filename)
 
             except OSError as err:
                 print("File creation error:", err.errno, flush=True)
 
-    def add_html_title(self,heureRecept:datetime, recu:str)->str:
+    @staticmethod
+    def add_html_title(heureRecept:datetime, recu:str, self=None)->str:
+        """ Ajouter un titre au reçu """
         recuConvert:etree.ElementTree  = html.fromstring(recu)
 
         theHead:etree.Element = recuConvert.head
@@ -112,37 +114,86 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
         return html.tostring(recuConvert).decode()
     
-    def add_html_footer(self, recu:str)->str:
-        recuConvert:etree.ElementTree  = html.fromstring(recu)
-        theBody:etree.Element = recuConvert.body
-        
-        newFooter = etree.Element("footer")
-        newFooter.text = "Retour à la <a href='/recus'>Liste des reçus</a>"
-        theBody.append(newFooter)
+    @staticmethod
+    def add_receipt_to_directory(new_filename: str, self=None) -> None:
+        # Add an entry in the reference file with the new filename and an unique ID.
+        # Open the CSV file in read mode to count the existing rows
+        try:
+            with open(PurePath('web', 'receipt_list.csv'), mode='r') as fileDirectory:
+                reader = csv.reader(fileDirectory)
+                # Count the number of rows, starting from 1 (to include the header)
+                next_fileID = sum(1 for row in reader) + 1
+                fileDirectory.close()
+        except FileNotFoundError:
+            # Create the CSV file with the headers
+            with open(PurePath('web', 'receipt_list.csv'), mode='w', newline='') as fileDirectory:
+                writer = csv.writer(fileDirectory)
+                writer.writerow(['next_fileID', 'filename'])
+                fileDirectory.close()
+            next_fileID = 1  # If the file does not exist, start IDs is 1
+        # Now, id holds the next sequential ID
 
-        return html.tostring(recuConvert).decode()                   
-                    
+        # Open the CSV file in append mode to add a new row
+        with open(PurePath('web', 'receipt_list.csv'), mode='a', newline='') as fileDirectory:
+            writer = csv.writer(fileDirectory)
+            # Append a new line to the CSV file with the new ID and filename
+            writer.writerow([next_fileID, new_filename])    
+               
 
 app = Flask(__name__)
 
 @app.route("/")
 def accueil():
-    return render_template('accueil.html.j2', host=getenv('FLASK_RUN_HOST', '0.0.0.0'), 
-                           port=getenv('PRINTER_PORT', '9100'), 
+    return render_template('accueil.html.j2', host = request.host.split(':')[0], 
+                           jetDirectPort=getenv('PRINTER_PORT', '9100'),
                             debug=getenv('FLASK_RUN_DEBUG', "false") )
 
 @app.route("/recus")
 def list_receipts():
-    fichiers = listdir(PurePath('web', 'receipts'))
-    noms = [ splitext(filename)[0] for filename in fichiers ]
-    return render_template('receiptList.html.j2', receiptlist=noms)
+    """ List all the receipts available """
+    try:
+        with open(PurePath('web', 'receipt_list.csv'), mode='r') as fileDirectory:
+            # Skip the header and get all the filenames in a list
+            reader = csv.reader(fileDirectory)
+            noms = list()
+            for row in reader:
+                if row[0] == 'next_fileID':
+                    continue # Skip the header
+                else:
+                    # Add the file id and filename to the list
+                    noms.append([row[0], row[1]])
+            # Since the file is found, render the template with the list of filenames
+            return render_template('receiptList.html.j2', receiptlist=noms)
+    except FileNotFoundError:
+        return redirect(url_for('accueil'))
+    
 
-@app.route("/recus/<string:filename>")
-def show_receipt(filename):
-    return send_file(PurePath('web', 'receipts', filename))
+@app.route("/recus/<int:fileID>")
+def show_receipt(fileID:int):
+    """ Show the receipt with the given ID """
+    # Open the CSV file in read mode
+    with open(PurePath('web', 'receipt_list.csv'), mode='r') as fileDirectory:
+        reader = csv.reader(fileDirectory)
+        # Find the row with the given ID
+        for row in reader:
+            if row[0] == 'next_fileID':
+                continue # Skip the header
+            elif int(row[0]) == fileID:
+                filename = row[1]
+                break
+        else:
+            # If the ID is not found, return a 404 error
+            return "Not found", 404
+        
+        # If the ID is found, open the file to append the footer from templates/footer.html
+        with open(PurePath('web', 'receipts', filename), mode='rt') as receipt:
+            receipt_html = receipt.read()   # Read the file content
+            receipt_html = receipt_html.replace('</body>', render_template('footer.html') + '</body>')  # Append the footer
+            return receipt_html
+    
 
 @app.route("/newReceipt")
-def publish_receipt():
+def publish_receipt_from_CUPS():
     """ Get the receipt from the CUPS temp directory and publish it in the web/receipts directory and add the corresponding log to our permanent logfile"""
     heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
     #NOTE: on set dans cups-files.conf le répertoire TempDir:   
@@ -151,16 +202,23 @@ def publish_receipt():
     
     # specify your source file and destination file paths
     source_file = source_dir.joinpath('esc2html.html')
-    destination_dir = PurePath('web', 'receipts')
 
     # specify your new filename
-    new_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X%Z'))
+    new_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X.%f%Z'))
+
 
     # create the full destination path with the new filename
-    destination_file = destination_dir / new_filename
+    destination_file = PurePath('web', 'receipts', new_filename)
 
-    # use shutil.copy2() to copy the file
-    shutil.copy2(source_file, destination_file)
+    #read the file, add the title and write it in the destination file
+    with open(source_file, mode='rt') as receipt:
+        receipt_html = receipt.read()
+        receipt_html = ESCPOSHandler.add_html_title(heureRecept, receipt_html)
+        with open(destination_file, mode='wt') as newReceipt:
+            newReceipt.write(receipt_html)
+            newReceipt.close()
+
+    ESCPOSHandler.add_receipt_to_directory(new_filename)
 
     #Load the log from /var/spool/cups/tmp/esc2html_log and append it in web/tmp/esc2html_log
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
@@ -176,7 +234,6 @@ def publish_receipt():
     #send an http acknowledgement
     return "OK"
 
-    
 
 def launchPrintServer(printServ:ESCPOSServer):
     #Recevoir des connexions, une à la fois, pour l'éternité.  Émule le protocle HP JetDirect
