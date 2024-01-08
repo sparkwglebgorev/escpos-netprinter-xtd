@@ -73,7 +73,7 @@ foreach ($commands as $cmd) {
     if ($cmd -> isAvailableAs('TextContainer')) {
         // Add text to line
         // TODO could decode text properly from legacy code page to UTF-8 here.
-        #if ($debugMode) error_log("Text or unidentified command: '". $cmd->get_data() ."' ", 0);
+        if ($debugMode) error_log("Text or unidentified command: '". $cmd->getText() ."' ", 0);
         $spanContentText = $cmd -> getText();
         $lineHtml .= span($formatting, $spanContentText);
     }
