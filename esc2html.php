@@ -136,11 +136,11 @@ foreach ($commands as $cmd) {
                     $qrcodeURI = $code2dStorage->getQRCodeURI();
 
                     if ($qrcodeURI == Code2DStatestorage::NO_DATA_ERROR){
-                        error_log("DEBUG:  QR code print ordered before contents stored.",0);
+                        error_log("Warning:  QR code print ordered before contents stored.",0);
                         $imagefile = file_get_contents(__DIR__.'/NoQR.JPG');
                         if ($imagefile === false) {
                             #To make the netprinter work, provide a full path to the image file
-                            error_log("ERROR:  NoQR image not found in ".__DIR__, 0);
+                            error_log("ERROR:  NoQR.JPG image not found in ".__DIR__, 0);
                             $imageData = '';
                             $imgSrc = '';
                         }

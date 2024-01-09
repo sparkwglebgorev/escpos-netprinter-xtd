@@ -22,8 +22,10 @@ RUN groupadd cups-admins
 RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
 RUN echo "cupsadmin:123456" | chpasswd
 
-# "Device URI" for CUPS
-ENV DEVICE_URI=esc2file:/home/escpos-emu/web/receipts/test.html
+# Compose the "Device URI" for CUPS.
+ENV DEST_FILENAME=esc2html.html
+ENV LOG_FILENAME=esc2html_log
+ENV DEVICE_URI=esc2file:/${DEST_FILENAME}/${LOG_FILENAME}
 
 #Installation de l'émulateur d'imprimante
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
@@ -44,6 +46,7 @@ RUN rm composer.json && rm composer.lock
 
 #Configurer l'environnement d'exécution 
 ENV FLASK_APP=escpos-netprinter.py
+#Accepted source IP addresses
 ENV FLASK_RUN_HOST=0.0.0.0
 #Web interface port
 ENV FLASK_RUN_PORT=80  

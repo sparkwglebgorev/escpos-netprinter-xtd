@@ -1,3 +1,4 @@
+import os
 from flask import Flask, redirect, render_template, request, url_for
 from os import getenv
 from io import BufferedWriter
@@ -200,17 +201,17 @@ def publish_receipt_from_CUPS():
     #Extraire le répertoire temporaire de CUPS de cups-files.conf
     source_dir=PurePath('/var', 'spool', 'cups', 'tmp')
     
-    # specify your source file and destination file paths
-    source_file = source_dir.joinpath('esc2html.html')
+    # Get the source filename from the environment variable and create the full path
+    source_filename = os.environ['DEST_FILENAME']
+    source_file = source_dir.joinpath(source_filename)
 
-    # specify your new filename
+    # specify the destination filename
     new_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X.%f%Z'))
 
-
-    # create the full destination path with the new filename
+    # Create the full destination path with the new filename
     destination_file = PurePath('web', 'receipts', new_filename)
 
-    #read the file, add the title and write it in the destination file
+    # Read the source file, add the title and write it in the destination file
     with open(source_file, mode='rt') as receipt:
         receipt_html = receipt.read()
         receipt_html = ESCPOSHandler.add_html_title(heureRecept, receipt_html)
@@ -218,11 +219,14 @@ def publish_receipt_from_CUPS():
             newReceipt.write(receipt_html)
             newReceipt.close()
 
+    # Add the new receipt to the directory
     ESCPOSHandler.add_receipt_to_directory(new_filename)
 
-    #Load the log from /var/spool/cups/tmp/esc2html_log and append it in web/tmp/esc2html_log
+    #Load the log file from /var/spool/cups/tmp/ and append it in web/tmp/esc2html_log
+    logfile_filename = os.environ['LOG_FILENAME']
+    print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
-    source_log = open(source_dir.joinpath('esc2html_log'), mode='rt')
+    source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
     log.write(source_log.read())
     log.close()
     #remove the contents from the source log
