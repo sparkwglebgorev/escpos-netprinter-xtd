@@ -15,6 +15,12 @@ escimages.php
 LICENSE**
 README**
 
+# Test and runtime-generated files
+web/receipts/**
+web/tmp/**
+web/receipt_list.csv
+web/tmp/**
+
 # Remove all traces of Visual Studio Code devcontainer extension from the container - does not affect the actual devcontainer
 .devcontainer/**
 .devcontainer

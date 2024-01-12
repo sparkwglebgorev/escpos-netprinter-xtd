@@ -40,20 +40,44 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         #Read everything until we get EOF 
         indata:bytes = b''
         try:
-            indata = self.rfile.read()
+            # Read the handshake first to signal that we are a printer if needed
+            # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
+            
+            indata_handshake = self.rfile.read(8) #Read the first 8 bytes
+            print(f"{len(indata_handshake)} bytes received.")
+            print("-----start of data-----", flush=True)
+            print(indata_handshake, flush=True)
+            print("-----end of data-----", flush=True)
+            if(indata_handshake == b'\x1b\x40\x1b\x3d\x01\x10\x04\x01'):
+                self.wfile.write(b'\x16')
+                self.wfile.flush()
+                print("Handshake done", flush=True)
+
+            #Read the rest of the data and append it to the handshake
+            after_handshake = self.rfile.read() 
+            indata = indata_handshake + after_handshake
+
      
         except TimeoutError:
             print("Timeout while reading")
             self.connection.close()
             if len(indata) > 0:
                 print(f"{len(indata)} bytes received.")
+                print("-----start of data-----", flush=True)
                 print(indata, flush=True)
+                print("-----end of data-----", flush=True)
             else: 
-                print("Nothing received!", flush=True)
+                print("No data received!", flush=True)
             
                 
         else:
             print(f"{len(indata)} bytes received.", flush=True)
+
+            #Debug:  afficher les données reçues
+            print("-----start of data-----", flush=True)
+            print(indata, flush=True)
+            print("-----end of data-----", flush=True)
+
             #Écrire les données reçues dans le fichier.
             binfile.write(indata)
 
@@ -224,7 +248,7 @@ def publish_receipt_from_CUPS():
 
     #Load the log file from /var/spool/cups/tmp/ and append it in web/tmp/esc2html_log
     logfile_filename = os.environ['LOG_FILENAME']
-    print(logfile_filename)
+    # print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
     log.write(source_log.read())
@@ -244,7 +268,7 @@ def launchPrintServer(printServ:ESCPOSServer):
     """ NOTE: On a volontairement pris la version bloquante pour s'assurer que chaque reçu va être sauvegardé puis converti avant d'en accepter un autre.
         NOTE:  il est possible que ce soit le comportement attendu de n'accepter qu'une connection à la fois.  Voir p.6 de la spécification d'un module Ethernet
                 à l'adresse suivante:  https://files.cyberdata.net/assets/010748/ETHERNET_IV_Product_Guide_Rev_D.pdf  """
-    print (f"Printer port open", flush=True)
+    print (f"JetDirect port open", flush=True)
     printServ.serve_forever()
 
 
