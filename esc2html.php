@@ -149,7 +149,7 @@ foreach ($commands as $cmd) {
                             $imgSrc = 'data:image/jpeg;base64,' . $imageData;
                         }
                         $qrcodeData = Code2dStatestorage::NO_DATA_ERROR;
-                        $outp[] = "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" />";
+                        $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" /></div>";
                     }
                     else {
                         $qrcodeData = $code2dStorage->getQRCodeData();

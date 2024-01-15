@@ -280,6 +280,8 @@ if __name__ == "__main__":
     debugmode = getenv('FLASK_RUN_DEBUG', "false")
     printPort = getenv('PRINTER_PORT', '9100')
 
+    print("Starting ESCPOS-netprinter", flush=True)
+
     #Lancer le service d'impression TCP
     with ESCPOSServer((host, int(printPort)), ESCPOSHandler) as printServer:
         t = threading.Thread(target=launchPrintServer, args=[printServer])
