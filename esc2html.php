@@ -196,14 +196,15 @@ function imgAsDataUrl($bufferedImg)
     return "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$imgAlt\" width=\"{$imgWidth}px\" />";
 }
 
-/* Creates the HTML image of a QR code
+/* Creates the HTML image of a QR code.
+The image is encased in a div which is used to center the image.
  Args:  
         bufferedQRImg: the Base64 encoded PNG image of the QR code
         qrcodeData: the data encoded in the QR code, to be put in the alt tag as an accessibility measure */
 function qrCodeAsDataUrl($bufferedQRImg, $qrcodeData)
 {
     $imgSrc = "data:image/png;base64," . $bufferedQRImg;
-    return "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" />";
+    return "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" /></div>";
 }
 
 function wrapInline($tag, $closeTag, $content)
