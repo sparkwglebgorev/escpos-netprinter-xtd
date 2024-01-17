@@ -116,7 +116,7 @@ foreach ($commands as $cmd) {
             error_log("Subcommand ". get_class($sub) ."", 0); //Output the subcommand class in the debug console
             error_log("Function " . $sub->get_fn() ."",0);
             error_log("Data size:". $sub->getDataSize() ."",0);
-            error_log("Data: '" . $sub->get_data() ."",0);
+            error_log("Data: " . $sub->get_data() ."",0);
         }
         if($sub->isAvailableAs('QRcodeSubCommand')){ 
             switch ($sub->get_fn()) {

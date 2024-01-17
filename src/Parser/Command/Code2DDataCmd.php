@@ -33,8 +33,8 @@ class Code2DDataCmd extends DataCmd
         }
         elseif ($this -> pH === null){
             $this -> pH = ord($char);
-            //Calculate the length of fn+[parameters] - the spec starts counting AFTER cn
-            $this->dataSize = $this->pL + $this->pH * 256;
+            //Calculate the length of fn+[parameters] - the spec counts cn, so we remove its size
+            $this->dataSize = ($this->pL + $this->pH * 256) - 1;  
             return true;
         }
         //Now interpret the subcommand

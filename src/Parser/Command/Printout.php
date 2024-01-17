@@ -93,8 +93,17 @@ class Printout extends Command
             '.' => 'CancelKanjiCharacterMode',
             'C' => 'SelectKanjiCharacterCode'
         ),
-        DLE => array(
-
+        DLE => array( //DLE groups "real-time" commands like "sound buzzer" or "feed paper".
+            //Since none of those change the printed result, we parse them as generics.
+            '\x04' => 'CommandTwoArgs', //EOT
+            '\x05' => 'CommandOneArg', //ENQ
+            '\x14' => array( //DC4
+                '\x01' => 'CommandTwoArgs', //Generate pulse
+                '\x02' => 'CommandTwoArgs', //Printer power-off
+                '\x03' => 'CommandFiveArgs', //Real-time buzzer
+                '\x07' => 'CommandOneArg', //Real-time status transmission
+                '\x08\x01\x03\x14\x01\x06\x02' => 'CommandOneArg' //Clear buffers. NOTE the only possible arg here is '\x08'
+            ),
         ),
         CAN => 'CancelCmd'
     );

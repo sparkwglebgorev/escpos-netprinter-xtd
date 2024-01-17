@@ -8,10 +8,11 @@ class QRcodeSubCommand extends Code2DSubCommand
 {
 
     private $fn = null;
+    private $m = null;
 
     public function __construct($dataSize)
     {
-        $this->dataSize = $dataSize - 1;  //$dataSize is the size of [parameters], so we exclude the fn byte
+        $this->dataSize = $dataSize;  //$dataSize is the size of fn+[parameters], so we exclude the fn byte
     }
 
     public function addChar($char)
@@ -19,8 +20,15 @@ class QRcodeSubCommand extends Code2DSubCommand
         if ($this->fn === null){
             //First extract the QR function
             $this -> fn = ord($char);
+            $this->dataSize = $this->dataSize - 1; //subtract the size of fn from the size of the QR contents
             return true;
         }
+        elseif ($this->fn == 80 && $this->m === null){
+            //If this is the data storage function, extract the m value
+            $this->m = ord($char);
+            $this->dataSize = $this->dataSize - 1; //subtract the size of m from the size of the QR contents
+            return true;
+        } 
         else{ 
             //then send [parameters] into $data
             return parent::addChar($char);
