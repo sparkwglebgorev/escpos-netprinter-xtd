@@ -97,15 +97,29 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     def print_toHTML(self, binfile:BufferedWriter, bin_filename:PurePath):
 
         print("Printing ", binfile.name)
-        recu:CompletedProcess = subprocess.run(["php", "esc2html.php", bin_filename.as_posix()], capture_output=True, text=True )
-        if recu.returncode != 0:
-            print(f"Error while converting receipt: {recu.returncode}")
+        try:
+            recu:CompletedProcess = subprocess.run(["php", "esc2html.php", bin_filename.as_posix()], capture_output=True, text=True, check=True)
+
+        except subprocess.CalledProcessError as err:
+            print(f"Error while converting receipt: {err.returncode}")
+            # append the error output to the log file
+            with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
+                log.write(f"Error while converting a JetDirect print: {err.returncode}")
+                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z'))
+                log.write(err.stderr)
+                log.close()
+            
             print("Error output:")
-            print(recu.stderr, flush=True)
+            print(err.stderr, flush=True)
         
         else:
             #Si la conversion s'est bien passée, on devrait avoir le HTML
             print (f"Receipt decoded", flush=True)
+            with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
+                log.write("Successful JetDirect print")
+                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z'))
+                log.write(recu.stderr)
+                log.close()
             #print(recu.stdout, flush=True)
 
             #Ajouter un titre au reçu
@@ -251,6 +265,7 @@ def publish_receipt_from_CUPS():
     # print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
+    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}")
     log.write(source_log.read())
     log.close()
     #remove the contents from the source log
