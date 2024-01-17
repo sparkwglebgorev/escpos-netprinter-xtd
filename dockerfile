@@ -55,6 +55,8 @@ ENV PRINTER_PORT=9100
 
 # To activate the Flask debug mode, set at True (case-sensitive)
 ENV FLASK_RUN_DEBUG=false  
+# To activate the netprinter debug mode, set at True (case-sensitive)
+ENV ESCPOS_DEBUG=True
 
 EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
@@ -63,7 +65,5 @@ EXPOSE 515
 #Expose the CUPS admin port (temporary?)
 EXPOSE 631
 
-# Démarrer le serveur Flask et le serveur d'impression
-#CMD ["/usr/sbin/cupsd", "-f"]
-#CMD python3 ${FLASK_APP}
+# Start Flask and all printing services
 CMD ["/bin/bash","-c","./start.sh"]

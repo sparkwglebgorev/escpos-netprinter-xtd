@@ -34,6 +34,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     # Receive the print data and dump it in a file.
     def handle(self):
         print (f"Address connected: {self.client_address}", flush=True)
+        netprinter_debugmode = getenv('ESCPOS_DEBUG', "false")
         bin_filename = PurePath('web', 'tmp', "reception.bin")
         binfile = open(bin_filename, "wb")
 
@@ -45,9 +46,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             
             indata_handshake = self.rfile.read(8) #Read the first 8 bytes
             print(f"{len(indata_handshake)} bytes received.")
-            print("-----start of data-----", flush=True)
-            print(indata_handshake, flush=True)
-            print("-----end of data-----", flush=True)
+            if netprinter_debugmode == 'True':
+                print("-----start of data-----", flush=True)
+                print(indata_handshake, flush=True)
+                print("-----end of data-----", flush=True)
             if(indata_handshake == b'\x1b\x40\x1b\x3d\x01\x10\x04\x01'):
                 self.wfile.write(b'\x16')
                 self.wfile.flush()
@@ -63,9 +65,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             self.connection.close()
             if len(indata) > 0:
                 print(f"{len(indata)} bytes received.")
-                print("-----start of data-----", flush=True)
-                print(indata, flush=True)
-                print("-----end of data-----", flush=True)
+                if netprinter_debugmode == 'True':
+                    print("-----start of data-----", flush=True)
+                    print(indata, flush=True)
+                    print("-----end of data-----", flush=True)
             else: 
                 print("No data received!", flush=True)
             
@@ -73,10 +76,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         else:
             print(f"{len(indata)} bytes received.", flush=True)
 
-            #Debug:  afficher les données reçues
-            print("-----start of data-----", flush=True)
-            print(indata, flush=True)
-            print("-----end of data-----", flush=True)
+            if netprinter_debugmode == 'True':
+                print("-----start of data-----", flush=True)
+                print(indata, flush=True)
+                print("-----end of data-----", flush=True)
 
             #Écrire les données reçues dans le fichier.
             binfile.write(indata)
@@ -292,7 +295,7 @@ if __name__ == "__main__":
     #Obtenir les variables d'environnement
     host = getenv('FLASK_RUN_HOST', '0.0.0.0')  #By default, listen to all source addresses
     port = getenv('FLASK_RUN_PORT', '5000')
-    debugmode = getenv('FLASK_RUN_DEBUG', "false")
+    flask_debugmode = getenv('FLASK_RUN_DEBUG', "false")
     printPort = getenv('PRINTER_PORT', '9100')
 
     print("Starting ESCPOS-netprinter", flush=True)
@@ -304,7 +307,7 @@ if __name__ == "__main__":
         t.start()
     
         #Lancer l'application Flask
-        if debugmode == 'True': 
+        if flask_debugmode == 'True': 
             startDebug:bool = True
         else:
             startDebug:bool = False
