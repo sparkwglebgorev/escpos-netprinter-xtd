@@ -170,15 +170,13 @@ class Code2DStateStorage
     }
 
     //To implement GS ( k <Function 181>, this outputs the QR code in png format as a base64 URI string
-    public function getQRCodeURI(){
+    public function getQRCodeBase64URI(){
         // chillerlan/PHP-QRCode version
         // this library can only output Model 2 QR codes, but we will abuse it by setting the version
 
         if(strlen($this->symbolStorage) > 0){
             // 1) set the options
             $qroptions = new QROptions;
-            $qroptions->outputType          = 'imagick';
-            $qroptions->imagickFormat       = 'png32'; // e.g. png32, jpeg, webp
             $qroptions->quality = 100;
             $qroptions->outputBase64 = true;  //To make render() output the URI string directly
 
@@ -201,10 +199,10 @@ class Code2DStateStorage
                     break;
                 }
             // 2) generate the QR
-            $qroutput = (new QRCode($qroptions))->render($this->symbolStorage);
+            $qrCodeBase64 = (new QRCode($qroptions))->render($this->symbolStorage);
 
-            // 3) retourner l'URI contenant l'image PNG du code avec imagick
-            return $qroutput;
+            // 3) return the base64 URI for the rendered QR code
+            return $qrCodeBase64;
         }
         else {
             return self::NO_DATA_ERROR;

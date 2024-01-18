@@ -133,7 +133,7 @@ foreach ($commands as $cmd) {
                     $code2dStorage->fillSymbolStorage($sub->get_data());
                     break;
                 case 81:  //Print the QR code
-                    $qrcodeURI = $code2dStorage->getQRCodeURI();
+                    $qrcodeURI = $code2dStorage->getQRCodeBase64URI();
 
                     if ($qrcodeURI == Code2DStatestorage::NO_DATA_ERROR){
                         error_log("Warning:  QR code print ordered before contents stored.",0);
@@ -153,7 +153,7 @@ foreach ($commands as $cmd) {
                     }
                     else {
                         $qrcodeData = $code2dStorage->getQRCodeData();
-                        $outp[] = qrCodeAsDataUrl($qrcodeURI, $qrcodeData);
+                        $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$qrcodeURI\" alt=\"$qrcodeData\" /></div>";
                     }
                     
                     break;
@@ -194,17 +194,6 @@ function imgAsDataUrl($bufferedImg)
     $imgWidth = $bufferedImg -> getWidth() / 2; // scaling, images are quite high res and dwarf the text
     $bufferedImg = null;
     return "<img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$imgAlt\" width=\"{$imgWidth}px\" />";
-}
-
-/* Creates the HTML image of a QR code.
-The image is encased in a div which is used to center the image.
- Args:  
-        bufferedQRImg: the Base64 encoded PNG image of the QR code
-        qrcodeData: the data encoded in the QR code, to be put in the alt tag as an accessibility measure */
-function qrCodeAsDataUrl($bufferedQRImg, $qrcodeData)
-{
-    $imgSrc = "data:image/png;base64," . $bufferedQRImg;
-    return "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$imgSrc\" alt=\"$qrcodeData\" /></div>";
 }
 
 function wrapInline($tag, $closeTag, $content)
