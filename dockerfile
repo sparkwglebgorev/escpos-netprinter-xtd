@@ -56,7 +56,7 @@ ENV PRINTER_PORT=9100
 # To activate the Flask debug mode, set at True (case-sensitive)
 ENV FLASK_RUN_DEBUG=false  
 # To activate the netprinter debug mode, set at True (case-sensitive)
-ENV ESCPOS_DEBUG=True
+ENV ESCPOS_DEBUG=false
 
 EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
