@@ -36,65 +36,71 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         print (f"Address connected: {self.client_address}", flush=True)
         netprinter_debugmode = getenv('ESCPOS_DEBUG', "false")
         bin_filename = PurePath('web', 'tmp', "reception.bin")
-        binfile = open(bin_filename, "wb")
+        with open(bin_filename, "wb") as binfile:
 
-        #Read everything until we get EOF 
-        indata:bytes = b''
-        try:
-            # Read the handshake first to signal that we are a printer if needed
-            # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
-            
-            indata_handshake = self.rfile.read(8) #Read the first 8 bytes
-            print(f"{len(indata_handshake)} bytes received.")
-            if netprinter_debugmode == 'True':
-                print("-----start of data-----", flush=True)
-                print(indata_handshake, flush=True)
-                print("-----end of data-----", flush=True)
-            if(indata_handshake == b'\x1b\x40\x1b\x3d\x01\x10\x04\x01'):
-                self.wfile.write(b'\x16')
-                self.wfile.flush()
-                print("Handshake done", flush=True)
-
-            #Read the rest of the data and append it to the handshake
-            after_handshake = self.rfile.read() 
-            indata = indata_handshake + after_handshake
-
-     
-        except TimeoutError:
-            print("Timeout while reading")
-            self.connection.close()
-            if len(indata) > 0:
-                print(f"{len(indata)} bytes received.")
+            #Read everything until we get EOF 
+            indata:bytes = b''
+            after_handshake:bytes = b''
+            try:
+                # Read the handshake first to signal that we are a printer if needed
+                # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
+                
+                indata_handshake = self.rfile.read(8) #Read the first 8 bytes
+                print(f"{len(indata_handshake)} bytes received.")
                 if netprinter_debugmode == 'True':
                     print("-----start of data-----", flush=True)
+                    print(indata_handshake, flush=True)
+                    print("-----end of data-----", flush=True)
+                if(indata_handshake == b'\x1b\x40\x1b\x3d\x01\x10\x04\x01'):
+                    self.wfile.write(b'\x16')
+                    self.wfile.flush()
+                    print("Handshake done", flush=True)
+
+                #Read the rest of the data and append it to the handshake
+                after_handshake = self.rfile.read() 
+                indata = indata_handshake + after_handshake
+
+        
+            except TimeoutError:
+                print("Timeout while reading")
+                self.connection.close()
+                if len(indata) > 0:
+                    print(f"{len(indata)} bytes received.")
+                    if netprinter_debugmode == 'True':
+                        print("-----start of data-----", flush=True)
+                        print(indata, flush=True)
+                        print("-----end of data-----", flush=True)
+                else: 
+                    print("No data received!", flush=True)
+                
+                    
+            else:
+                #Quand on a reçu le signal de fin de transmission
+                print(f"{len(indata)} bytes received.", flush=True)
+
+                if netprinter_debugmode == 'True':
+                    print("-----start of complete data-----", flush=True)
                     print(indata, flush=True)
                     print("-----end of data-----", flush=True)
-            else: 
-                print("No data received!", flush=True)
+
+                #Écrire les données reçues dans le fichier, sauf si on a seulement eu le handshake.
+                if len(after_handshake) > 0:
+                    binfile.write(indata)
+                    binfile.close()  #Écrire le fichier et le fermer
+                    #traiter le fichier reception.bin pour en faire un HTML
+                    self.print_toHTML(binfile, bin_filename)
+                elif netprinter_debugmode == 'True':
+                        print("Nothing after the handshake: nothing will be printed.", flush=True)
+
+        #The binfile should auto-close here.
+
+        self.wfile.write(b"ESCPOS-netprinter: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
+        self.wfile.flush()
+        self.connection.close()
+
+        print ("Data received, signature sent.", flush=True)
             
-                
-        else:
-            print(f"{len(indata)} bytes received.", flush=True)
-
-            if netprinter_debugmode == 'True':
-                print("-----start of data-----", flush=True)
-                print(indata, flush=True)
-                print("-----end of data-----", flush=True)
-
-            #Écrire les données reçues dans le fichier.
-            binfile.write(indata)
-
-            #Quand on a reçu le signal de fin de transmission
-            binfile.close()  #Écrire le fichier et le fermer
-
-            self.wfile.write(b"ESCPOS-netprinter: All done!")  #A enlever plus tard?  On dit au client qu'on a fini.
-            self.wfile.flush()
-            self.connection.close()
-
-            print ("Data received, signature sent.", flush=True)
             
-            #traiter le fichier reception.bin pour en faire un HTML
-            self.print_toHTML(binfile, bin_filename)
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
     def print_toHTML(self, binfile:BufferedWriter, bin_filename:PurePath):
@@ -119,8 +125,8 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             #Si la conversion s'est bien passée, on devrait avoir le HTML
             print (f"Receipt decoded", flush=True)
             with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
-                log.write("Successful JetDirect print")
-                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z'))
+                log.write("Successful JetDirect print\n")
+                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z\n\n'))
                 log.write(recu.stderr)
                 log.close()
             #print(recu.stdout, flush=True)
