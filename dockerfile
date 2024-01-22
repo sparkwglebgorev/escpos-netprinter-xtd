@@ -30,6 +30,7 @@ ENV DEVICE_URI=esc2file:/${DEST_FILENAME}/${LOG_FILENAME}
 #Installation de l'émulateur d'imprimante
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
 ADD . /home/escpos-emu/
+RUN chmod +x start.sh
 RUN rm -rf web
 ADD --chmod=0555 cups/esc2file.sh /usr/lib/cups/backend/esc2file
 WORKDIR /home/escpos-emu/
