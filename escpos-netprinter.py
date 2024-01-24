@@ -272,15 +272,11 @@ def publish_receipt_from_CUPS():
     #Load the log file from /var/spool/cups/tmp/ and append it in web/tmp/esc2html_log
     logfile_filename = os.environ['LOG_FILENAME']
     # print(logfile_filename)
-    log = open(PurePath('web','tmp', 'esc2html_log'), mode='at')
+    log = open(PurePath('web','tmp', 'esc2html_log'), mode='wt')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
     log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}")
     log.write(source_log.read())
     log.close()
-    #remove the contents from the source log
-    source_log.close()
-    source_log = open(source_dir.joinpath('esc2html_log'), mode='wt')
-    source_log.write('')
     source_log.close()
 
     #send an http acknowledgement
