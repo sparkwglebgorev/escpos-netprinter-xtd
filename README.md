@@ -5,6 +5,8 @@ This is a container-based ESC/POS network printer, that replaces paper rolls wit
 
 The printer emulates a 80mm roll of paper.
 
+![sample print](https://github.com/gilbertfl/escpos-netprinter/assets/83510612/8aefc8c5-01ab-45f3-a992-e2850bef70f6)
+
 ## Limits
 This docker image is not to be exposed on a public network (see [known issues](#known-issues))
 
