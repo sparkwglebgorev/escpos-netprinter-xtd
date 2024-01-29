@@ -14,22 +14,22 @@ $targetFilename = "";
 error_log("esc2html starting", 0);
 // Usage
 if ($argc < 2) {
-    print("Usage: " . $argv[0] . " [--debug] filename \n"."zéro args");
+    print("Usage: php " . $argv[0] . " [--debug] filename \n"."zéro args");
     exit(1);
 }
 else {
     if ($argv[1]=='--debug'){ 
         $debugMode = true;
         if (!isset($argv[2])) {
-            print("Usage: " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
+            print("Usage: php " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
             exit(1);
         }
         else $targetFilename = $argv[2];
-        error_log("Debug mode enabled", 0);
+        error_log("\nDebug mode enabled\n", 0);
     }
     else {  //First argument is not '--debug'
         if(isset($argv[2])) { // But there is at least 2 args
-            print("Usage: " . $argv[0] . " [--debug] filename \n". $argc-1 . " arguments received\n");
+            print("Usage: php " . $argv[0] . " [--debug] filename \n". $argc-1 . " arguments received\n");
             exit(1);
         }
         else $targetFilename = $argv[1]; //The only argument is the filename.

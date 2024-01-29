@@ -43,15 +43,20 @@ echo "NOTICE: processing Job ${jobid}" 1>&2
 #echo "DEBUG:  This is a \"debug\" level log message"     1>&2
                                                                                                          
 
-# we will read the output filename from the printers $DEVICE_URI environment
-# variable that should look like "esc2file:/dest_filename.suffix/log_filename.suffix"
+# We will read the output filename from the printers and set the debug mode from the $DEVICE_URI 
+# environment variable that should look like "esc2file:/dest_filename.suffix/log_filename.suffix/isdebug"
 
 # Extract the file names from the DEVICE_URI
 FILENAMES=${DEVICE_URI#esc2file:/}
-DEST_FILENAME=${FILENAMES%/*}
-LOG_FILENAME=${FILENAMES#*/}
+DEST_FILENAME=${FILENAMES%/*/*}
+TEMP=${FILENAMES%/*}
+LOG_FILENAME=${TEMP#*/}
+# Extract the debug flag from the DEVICE_URI
+ESCPOS_DEBUG=${FILENAMES##*/}
+
 echo "DEBUG:  DEST_FILENAME=${DEST_FILENAME}" 1>&2
 echo "DEBUG:  LOG_FILENAME=${LOG_FILENAME}" 1>&2
+echo "esc2file - Debug mode: ${ESCPOS_DEBUG}" 1>${TMPDIR}/${LOG_FILENAME}
 
 # Now do the real work:
 case ${#} in
@@ -71,8 +76,12 @@ case ${#} in
             echo "ERROR:   Cannot write to ${TMPDIR}/receipt.bin"  1>&2
             exit 51 #Send an error to CUPS to signal printing failure
          else 
-            #/usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
-            /usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+            if [ "${ESCPOS_DEBUG}" == "True" ]; then
+               /usr/local/bin/php /home/escpos-emu/esc2html.php --debug ${TMPDIR}/receipt.bin 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+            else
+               #/usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
+               /usr/local/bin/php /home/escpos-emu/esc2html.php ${TMPDIR}/receipt.bin 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+            fi
             if [ "$?" -ne "0" ]; then
                echo "ERROR:   Error $? while printing ${TMPDIR}/receipt.bin to ${TMPDIR}/${DEST_FILENAME}"  1>&2
                exit 52  #Send an error to CUPS to signal printing failure
@@ -82,8 +91,12 @@ case ${#} in
       6)
          # backend needs to read from file if number of arguments is 6
          echo "DEBUG:  Printing from file ${6}"     1>&2
-         #/usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
-         /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+         if [ "${ESCPOS_DEBUG}" == "True" ]; then
+            /usr/local/bin/php /home/escpos-emu/esc2html.php --debug ${6} 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+         else
+            #/usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/esc2html.html 2>>${TMPDIR}/esc2html_log
+            /usr/local/bin/php /home/escpos-emu/esc2html.php ${6} 1>${TMPDIR}/${DEST_FILENAME} 2>>${TMPDIR}/${LOG_FILENAME}
+         fi
          if [ "$?" -ne "0" ]; then
             echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}/${DEST_FILENAME}"  1>&2
             #echo "ERROR:  Error $? while printing ${6} to ${TMPDIR}/test.html"  1>&2

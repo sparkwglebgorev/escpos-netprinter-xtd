@@ -22,11 +22,6 @@ RUN groupadd cups-admins
 RUN useradd -d /home/escpos-emu -g cups-admins -s /sbin/nologin cupsadmin 
 RUN echo "cupsadmin:123456" | chpasswd
 
-# Compose the "Device URI" for CUPS.
-ENV DEST_FILENAME=esc2html.html
-ENV LOG_FILENAME=esc2html_log
-ENV DEVICE_URI=esc2file:/${DEST_FILENAME}/${LOG_FILENAME}
-
 #Installation de l'émulateur d'imprimante
 #Note:  utiliser "." au lieu de * permet de garder la structure et envoyer tous les sous-répertoires
 ADD . /home/escpos-emu/
@@ -63,8 +58,13 @@ EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
 #Expose the lpd port
 EXPOSE 515
-#Expose the CUPS admin port (temporary?)
+#Expose the CUPS admin port
 EXPOSE 631
+
+# Compose the "Device URI" for CUPS  "esc2file:/dest_filename.suffix/log_filename.suffix/isdebug"
+ENV DEST_FILENAME=esc2html.html
+ENV LOG_FILENAME=esc2html_log
+ENV DEVICE_URI=esc2file:/${DEST_FILENAME}/${LOG_FILENAME}/${ESCPOS_DEBUG}
 
 # Start Flask and all printing services
 CMD ["/bin/bash","-c","./start.sh"]

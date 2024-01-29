@@ -30,11 +30,12 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
     """
     timeout = 10  #On abandonne une réception après 10 secondes - un compromis pour assurer que tout passe sans se bourrer de connections zombies.
+    netprinter_debugmode = "false"
     
     # Receive the print data and dump it in a file.
     def handle(self):
         print (f"Address connected: {self.client_address}", flush=True)
-        netprinter_debugmode = getenv('ESCPOS_DEBUG', "false")
+        self.netprinter_debugmode = getenv('ESCPOS_DEBUG', "false")
         bin_filename = PurePath('web', 'tmp', "reception.bin")
         with open(bin_filename, "wb") as binfile:
 
@@ -47,7 +48,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 
                 indata_handshake = self.rfile.read(8) #Read the first 8 bytes
                 print(f"{len(indata_handshake)} bytes received.")
-                if netprinter_debugmode == 'True':
+                if self.netprinter_debugmode == 'True':
                     print("-----start of data-----", flush=True)
                     print(indata_handshake, flush=True)
                     print("-----end of data-----", flush=True)
@@ -66,7 +67,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 self.connection.close()
                 if len(indata) > 0:
                     print(f"{len(indata)} bytes received.")
-                    if netprinter_debugmode == 'True':
+                    if self.netprinter_debugmode == 'True':
                         print("-----start of data-----", flush=True)
                         print(indata, flush=True)
                         print("-----end of data-----", flush=True)
@@ -78,7 +79,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 #Quand on a reçu le signal de fin de transmission
                 print(f"{len(indata)} bytes received.", flush=True)
 
-                if netprinter_debugmode == 'True':
+                if self.netprinter_debugmode == 'True':
                     print("-----start of complete data-----", flush=True)
                     print(indata, flush=True)
                     print("-----end of data-----", flush=True)
@@ -89,7 +90,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     binfile.close()  #Écrire le fichier et le fermer
                     #traiter le fichier reception.bin pour en faire un HTML
                     self.print_toHTML(binfile, bin_filename)
-                elif netprinter_debugmode == 'True':
+                elif self.netprinter_debugmode == 'True':
                         print("Nothing after the handshake: nothing will be printed.", flush=True)
 
         #The binfile should auto-close here.
@@ -107,7 +108,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
         print("Printing ", binfile.name)
         try:
-            recu:CompletedProcess = subprocess.run(["php", "esc2html.php", bin_filename.as_posix()], capture_output=True, text=True, check=True)
+            if self.netprinter_debugmode == 'True':
+                recu:CompletedProcess = subprocess.run(["php", "esc2html.php", "--debug", bin_filename.as_posix()], capture_output=True, text=True, check=True)
+            else:
+                recu:CompletedProcess = subprocess.run(["php", "esc2html.php", bin_filename.as_posix()], capture_output=True, text=True, check=True)
 
         except subprocess.CalledProcessError as err:
             print(f"Error while converting receipt: {err.returncode}")
@@ -274,7 +278,7 @@ def publish_receipt_from_CUPS():
     # print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='wt')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
-    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}")
+    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}\n")
     log.write(source_log.read())
     log.close()
     source_log.close()
