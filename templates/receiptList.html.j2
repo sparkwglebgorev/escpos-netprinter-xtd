@@ -3,8 +3,8 @@
 <head>
     <title>Tous les reçus imprimés</title>
 </head>
-<body>
-
+<body style="display: flex;flex-direction: column;min-height: 100vh;">
+<div id="page" style="flex-grow: 1;">
     {%if receiptlist|length > 0 %}
     <h1>{{receiptlist|length}} recu{%if receiptlist|length > 1%}s{%endif%} disponible{%if receiptlist|length > 1%}s{%endif%}</h1>
         <ul id="receiptlist">
@@ -16,7 +16,7 @@
         <h1>Aucun reçu trouvé!</h1>
     {% endif %}
     {# a comment #}
-
+</div>
 {% include 'footer.html' %}
 </body>
 </html>

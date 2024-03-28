@@ -237,10 +237,11 @@ def show_receipt(fileID:int):
             # If the ID is not found, return a 404 error
             return "Not found", 404
         
-        # If the ID is found, open the file to append the footer from templates/footer.html
+        # If the ID is found, open the html rendering of the receipt and add the footer from templates/footer.html
         with open(PurePath('web', 'receipts', filename), mode='rt') as receipt:
             receipt_html = receipt.read()   # Read the file content
-            receipt_html = receipt_html.replace('</body>', render_template('footer.html') + '</body>')  # Append the footer
+            receipt_html = receipt_html.replace('<body>', '<body style="display: flex;flex-direction: column;min-height: 100vh;"><div id="page" style="flex-grow: 1;">')
+            receipt_html = receipt_html.replace('</body>', '</div>' + render_template('footer.html') + '</body>')  # Append the footer
             return receipt_html
     
 
