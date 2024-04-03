@@ -215,6 +215,8 @@ def list_receipts():
                     # Add the file id and filename to the list
                     noms.append([row[0], row[1]])
             # Since the file is found, render the template with the list of filenames
+            # in reverse chronological order (most recent at the top)
+            noms.reverse()
             return render_template('receiptList.html.j2', receiptlist=noms)
     except FileNotFoundError:
         return redirect(url_for('accueil'))
