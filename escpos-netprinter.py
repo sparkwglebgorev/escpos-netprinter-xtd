@@ -43,19 +43,54 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             indata:bytes = b''
             after_handshake:bytes = b''
             try:
-                # Read the handshake first to signal that we are a printer if needed
-                # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
+                # Process the first bytes to respond to status checks and tell the client we are a printer                
                 
-                indata_handshake = self.rfile.read(8) #Read the first 8 bytes
-                print(f"{len(indata_handshake)} bytes received.")
-                if self.netprinter_debugmode == 'True':
-                    print("-----start of data-----", flush=True)
-                    print(indata_handshake, flush=True)
-                    print("-----end of data-----", flush=True)
-                if(indata_handshake == b'\x1b\x40\x1b\x3d\x01\x10\x04\x01'):
-                    self.wfile.write(b'\x16')
-                    self.wfile.flush()
-                    print("Handshake done", flush=True)
+                indata_handshake:bytes = self.rfile.read1(2) #Read the first 2 bytes
+                match indata_handshake:
+                    case b'\x1b\x40':  #ESC @ 
+                        # Check if this is the "magic handshake"
+                        # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
+                        next_in:bytes = self.rfile.peek(6)
+                        if(next_in == b'\x1b\x3d\x01\x10\x04\x01'):  #ESC = \x01, DLE EOT \x01
+                            self.wfile.write(b'\x16')
+                            self.wfile.flush()
+                            if self.netprinter_debugmode == 'True':
+                                print("Magic handshake done", flush=True)                        
+
+                    case b'\x10\x04':
+                        # Process DLE EOT status requests, with the possibility of getting both back-to-back
+                        next_in:bytes = self.rfile.read1(2)  #The ops are 1 or 2 bytes, get whatever is there
+                        match next_in:
+                            case b'\x01':
+                                # Send printer status OK
+                                self.wfile.write(b'\x16') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Printer status sent", flush=True)
+                            case b'\x04':
+                                # Send roll paper status "present and adequate"
+                                self.wfile.write(b'\x12') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Paper status sent", flush=True)   
+                            #2 byte ops are not relevant, so we ignore them -> NOTE: this could block the print.
+                        indata_handshake = indata_handshake + next_in
+
+                        next_in = self.rfile.peek(4)  #check if another DLE EOT follows, without advancing
+                        match next_in:
+                            case b'\x10\x04\x01':
+                                # Send printer status OK
+                                self.wfile.write(b'\x16') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Printer status sent", flush=True)
+                            case b'\x10\x04\x04':
+                                # Send roll paper status "present and adequate"
+                                self.wfile.write(b'\x12') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Paper status sent", flush=True)
+                            #2 byte ops are not relevant, so we ignore them -> NOTE: this could block the print.
 
                 #Read the rest of the data and append it to the handshake
                 after_handshake = self.rfile.read() 
@@ -80,7 +115,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 print(f"{len(indata)} bytes received.", flush=True)
 
                 if self.netprinter_debugmode == 'True':
-                    print("-----start of complete data-----", flush=True)
+                    print("-----start of data-----", flush=True)
                     print(indata, flush=True)
                     print("-----end of data-----", flush=True)
 
