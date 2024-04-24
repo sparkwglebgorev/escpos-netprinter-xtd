@@ -118,7 +118,7 @@ foreach ($commands as $cmd) {
             error_log("Data size:". $sub->getDataSize() ."",0);
             error_log("Data: " . $sub->get_data() ."",0);
         }
-        if($sub->isAvailableAs('QRCodeSubCommand')){ 
+        if($sub->isAvailableAs('QRcodeSubCommand')){ 
             switch ($sub->get_fn()) {
                 case 65:  //set model
                     $code2dStorage->setQRModel($sub->get_data());

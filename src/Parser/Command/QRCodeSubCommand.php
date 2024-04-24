@@ -4,7 +4,7 @@ namespace ReceiptPrintHq\EscposTools\Parser\Command;
 use ReceiptPrintHq\EscposTools\Parser\Command\Code2DSubCommand;
 
 
-class QRCodeSubCommand extends Code2DSubCommand
+class QRcodeSubCommand extends Code2DSubCommand
 {
 
     private $fn = null;
