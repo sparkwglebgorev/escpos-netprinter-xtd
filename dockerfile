@@ -1,6 +1,7 @@
 #On part de l'image php-cli "latest" sur Debian
 #FROM php:cli
-#Contournement temporaire:  imagick a un problème, mais pas sur php8.2
+#Contournement temporaire:  imagick a un problème, mais pas sur php8.2 et moins
+#     historique dans le issue suivant: https://github.com/mlocati/docker-php-extension-installer/pull/811
 FROM php:8.2-cli
 
 #On va utiliser l'utilitaire "install-php-extensions" au lieu de PECL car il marche mieux.

@@ -39,94 +39,111 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         bin_filename = PurePath('web', 'tmp', "reception.bin")
         with open(bin_filename, "wb") as binfile:
 
-            #Read everything until we get EOF 
-            indata:bytes = b''
-            after_handshake:bytes = b''
+            #Read everything until we get EOF, and keep everything in a receive buffer
+            receive_buffer:bytes = b''
+
             try:
-                # Process the first bytes to respond to status checks and tell the client we are a printer                
+                # Implement the "Real-time command processing" block described in the Epson APG.
+                # How:  Skim the received data byte by byte to respond to status checks as they come.   
+                # We are making this as simple as possible so we do not slow down the print:  
+                #   1)  watch for ESC/POS commands that could lead to a status request               
+                #   2)  If this byte is none of those, send it forward without further processing
+                #   3)  If this byte is a candidate command:
+                #       a) Check a second byte for a status request
+                #       b) if the second byte does not indicate a status request, send the two bytes forward without further processing
+                #       c) if the second byte indicates a status request, reply appropriately then send all processed data bytes forward
                 
-                indata_handshake:bytes = self.rfile.read1(2) #Read the first 2 bytes
-                match indata_handshake:
-                    case b'\x1b\x40':  #ESC @ 
-                        # Check if this is the "magic handshake"
-                        # NOTE: since this is an undocumented feature, we will keep going even if we don't get the handshake
-                        next_in:bytes = self.rfile.peek(6)
-                        if(next_in == b'\x1b\x3d\x01\x10\x04\x01'):  #ESC = \x01, DLE EOT \x01
-                            self.wfile.write(b'\x16')
-                            self.wfile.flush()
-                            if self.netprinter_debugmode == 'True':
-                                print("Magic handshake done", flush=True)                        
+                while (indata_statuscheck := self.rfile.read(1)):
+                    match indata_statuscheck:
+                        case b'\x10' | b'\x1D' :  # DLE or GS
+                            #This is potentially a status request.
+                            indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
 
-                    case b'\x10\x04':
-                        # Process DLE EOT status requests, with the possibility of getting both back-to-back
-                        next_in:bytes = self.rfile.read1(2)  #The ops are 1 or 2 bytes, get whatever is there
-                        match next_in:
-                            case b'\x01':
-                                # Send printer status OK
-                                self.wfile.write(b'\x16') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Printer status sent", flush=True)
-                            case b'\x04':
-                                # Send roll paper status "present and adequate"
-                                self.wfile.write(b'\x12') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Paper status sent", flush=True)   
-                            #2 byte ops are not relevant, so we ignore them -> NOTE: this could block the print.
-                        indata_handshake = indata_handshake + next_in
+                            match indata_statuscheck:
+                                case b'\x10\x04':
+                                    # Respond to DLE EOT status requests
+                                    dle_eot_data:bytes = self.respond_dle_eot()
+                                    indata_statuscheck = indata_statuscheck + dle_eot_data #append the DLE EOT bytes to the processed bytes
+                                    if self.netprinter_debugmode == True:
+                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
 
-                        next_in = self.rfile.peek(4)  #check if another DLE EOT follows, without advancing
-                        match next_in:
-                            case b'\x10\x04\x01':
-                                # Send printer status OK
-                                self.wfile.write(b'\x16') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Printer status sent", flush=True)
-                            case b'\x10\x04\x04':
-                                # Send roll paper status "present and adequate"
-                                self.wfile.write(b'\x12') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Paper status sent", flush=True)
-                            #2 byte ops are not relevant, so we ignore them -> NOTE: this could block the print.
+                                case b'\x10\x14':
+                                    # Respond to DLE DC4 <fn=7> 
+                                    dle_dc4_data: bytes = self.respond_dle_dc4()
+                                    indata_statuscheck = indata_statuscheck + dle_dc4_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
 
-                #Read the rest of the data and append it to the handshake
-                after_handshake = self.rfile.read() 
-                indata = indata_handshake + after_handshake
+                                case b'\x1D\x72':
+                                    #Respond to GS r status requests
+                                    gs_r_data:bytes = self.respond_gs_r()
+                                    indata_statuscheck = indata_statuscheck + gs_r_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"GS r received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case b'\x1D\x49':
+                                    # Respond to GS I printer ID request
+                                    gs_i_data:bytes = self.respond_gs_i()
+                                    indata_statuscheck = indata_statuscheck + gs_i_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"GS i received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case b'\x1D\x67':
+                                    # Respond to GS g <fn=2> maintenance counter request
+                                    gs_g2_data:bytes = self.respond_gs_g()
+                                    indata_statuscheck = indata_statuscheck + gs_g2_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"GS g received containing {len(indata_statuscheck)} bytes", flush=True)
+                                
+                                case b'\x1D\x28':
+                                    # Respond to GS ( E and GS ( H requests
+                                    gs_parens_data:bytes = self.respond_gs_parens()
+                                    indata_statuscheck = indata_statuscheck + gs_parens_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"GS ( received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case _:
+                                    #This is not a status request
+                                    if self.netprinter_debugmode == True:
+                                        print(f"Almost-status bytes: {indata_statuscheck}", flush=True)
+                        case _:
+                            #This byte is uninteresting data for this block's purposes, no processing necessary.
+                            pass
+
+                    #Append the processed byte(s) to the receive buffer
+                    receive_buffer = receive_buffer + indata_statuscheck
 
         
             except TimeoutError:
                 print("Timeout while reading")
                 self.connection.close()
-                if len(indata) > 0:
-                    print(f"{len(indata)} bytes received.")
+                if len(receive_buffer) > 0:
+                    print(f"{len(receive_buffer)} bytes received.")
                     if self.netprinter_debugmode == 'True':
-                        print("-----start of data-----", flush=True)
-                        print(indata, flush=True)
-                        print("-----end of data-----", flush=True)
+                        print("-----start of data-----\n", flush=True)
+                        print(receive_buffer, flush=True)
+                        print("\n-----end of data-----", flush=True)
                 else: 
                     print("No data received!", flush=True)
                 
                     
             else:
                 #Quand on a reçu le signal de fin de transmission
-                print(f"{len(indata)} bytes received.", flush=True)
+                print(f"{len(receive_buffer)} bytes received.", flush=True)
 
                 if self.netprinter_debugmode == 'True':
-                    print("-----start of data-----", flush=True)
-                    print(indata, flush=True)
-                    print("-----end of data-----", flush=True)
+                    print("-----start of data-----\n", flush=True)
+                    print(receive_buffer, flush=True)
+                    print("\n-----end of data-----", flush=True)
 
-                #Écrire les données reçues dans le fichier, sauf si on a seulement eu le handshake.
-                if len(after_handshake) > 0:
-                    binfile.write(indata)
+                #Écrire les données reçues dans le fichier.
+                if len(receive_buffer) > 0:
+                    binfile.write(receive_buffer)
                     binfile.close()  #Écrire le fichier et le fermer
                     #traiter le fichier reception.bin pour en faire un HTML
                     self.print_toHTML(binfile, bin_filename)
                 elif self.netprinter_debugmode == 'True':
-                        print("Nothing after the handshake: nothing will be printed.", flush=True)
+                        print("No data received: nothing will be printed.", flush=True)
 
         #The binfile should auto-close here.
 
@@ -135,10 +152,356 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         self.connection.close()
 
         print ("Data received, signature sent.", flush=True)
+
+    def respond_dle_dc4(self) -> bytes:
+        #Consume a DLE DC4 request and respond to <fn=7>
+        if self.netprinter_debugmode == 'True': 
+            print("DLE DC4 request", flush=True)
+        next_in:bytes = self.rfile.read(1)  #Get the first byte
+        match next_in:
+            case b'\x07':
+                # Respond to a real-time ASB request
+                m:bytes = self.rfile.read(1)
+                match m:
+                    case b'\x01':
+                        #Transmit the 4 bytes of the all-clear ASB status like GS a
+                        self.wfile.write(b'\x00\x00\x00\x00')
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("4-byte ASB status sent", flush=True) 
+                    
+                    case b'\x02':
+                        #Transmit the 4 bytes of the all-clear extended ASB status like FS ( e 
+                        self.wfile.write(b'\x39\x00\x40\x00')
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("4-byte extended ASB status sent", flush=True) 
+                    
+                    case b'\x04':
+                        #Transmit the offline response like GS ( H <f=49>
+                        #TODO: The spec is not very clear on how to respond since GS ( h is a configuration request
+                        pass
+
+                    case _:
+                        if self.netprinter_debugmode == 'True':
+                            print("Unknown DLE DC4 <fn=7> request received: " + m, flush=True)
+
+                next_in = next_in + m
+
+            case _:
+                #This request is about something else, nothing to do.
+                if self.netprinter_debugmode == 'True':
+                    print("Non-status DLE DC4 request received: " + next_in, flush=True)
+        return next_in
+
+    def respond_fs_parens_e(self) -> bytes:
+        pass
+
+    def respond_gs_g(self) -> bytes:
+        #Consume a GS G request and respond to <fn=2>
+        if self.netprinter_debugmode == 'True': 
+            print("GS g request", flush=True)
+        next_in:bytes = self.rfile.read(2)  #Get the 2 and m bytes
+        match next_in:
+            case b'\x32\x00': 
+                #Respond to GS g 2 with a constant number
+                #TODO: someday implement counters in case some client checks their progress
+                next_in = next_in + self.rfile.read(2)  #Get 2 more bytes (nL and nH)
+                self.wfile.write(b'\x5F\x01\x00') #Send one(1) for all counters
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("4-byte extended ASB status sent", flush=True) 
+
+            case _:
+                if self.netprinter_debugmode == 'True':
+                    print("Non-status GS g request received: " + next_in, flush=True)
+
+        return next_in
+
+    def respond_gs_i(self) -> bytes:
+        #Consume and process one GS i request
+        if self.netprinter_debugmode == 'True': 
+            print("GS i request", flush=True)
+        next_in:bytes = self.rfile.read1(1)  #The n is at most 1 byte
+        match next_in:
+            case b'\x01' | b'\x31':  #1 or 49
+                #Transmit some printer model ID byte
+                self.wfile.write(b'\x01') #TODO: choose a model ID
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Printer model ID byte sent", flush=True)   
+            
+            case b'\x02' | b'\x32': # 2 or 50
+                #Transmit Printer type ID
+                self.wfile.write(b'\x02') # No multi-byte chars, autocutter installed, no DM-D
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Printer type ID byte sent", flush=True)   
+
+            case b'\x03' | b'\x33': # 3 or 51
+                #Transmit some version ID byte
+                self.wfile.write(b'\x01') #TODO: choose a version ID
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Printer version ID byte sent", flush=True)   
+
+            case b'\x21':  # 33
+                #Transmit printer type information - supported functions
+                # We send a 3-byte all-clear response
+                first_byte = b'\x02' # No multi-byte chars, autocutter installed, no DM-D
+                second_byte = b'\x40' #Fixed
+                third_byte = b'\x40'  #No peeler.
+                self.send_gs_i_printer_info_A(next_in + first_byte + second_byte + third_byte)
+                if self.netprinter_debugmode == 'True':
+                    print("Printer supported functions sent", flush=True)                 
+
+            case b'\x41': # 65
+                #Transmit printer firmware version
+                self.send_gs_i_printer_info_B(b'netprinter_1')
+                if self.netprinter_debugmode == 'True':
+                    print("Printer firmware version sent", flush=True) 
+
+            case b'\x42' | b'\x43':  # 66 or 67
+                #Transmit maker name or model name - could be different but not important.
+                self.send_gs_i_printer_info_B(b'ESCPOS-netprinter')
+                if self.netprinter_debugmode == 'True':
+                    print("Printer maker or model name sent", flush=True) 
+          
+            case b'\x44': # 68
+                #Transmit printer serial number
+                self.send_gs_i_printer_info_B(b'netprinter_1')
+                if self.netprinter_debugmode == 'True':
+                    print("Printer serial sent", flush=True) 
+
+            case b'\x45': # 69
+                #Transmit printer font of language
+                # TODO: we will send an empty response but testing is needed
+                self.send_gs_i_printer_info_B(b'')
+                if self.netprinter_debugmode == 'True':
+                    print("Empty language sent", flush=True) 
+
+            case _:
+                if self.netprinter_debugmode == 'True':
+                    print("Unknown GS i request received: " + next_in, flush=True)
+
+        return next_in
+
+    def send_gs_i_printer_info_A(self, contents:bytes) -> None:
+        #Helper to respond with Printer Info B
+        self.wfile.write(b'\x3D') #Header
+        self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
+        self.wfile.write(b'\x00') #NUL
+        self.wfile.flush()
+    
+    def send_gs_i_printer_info_B(self, contents:bytes) -> None:
+        #Helper to respond with Printer Info B
+        self.wfile.write(b'\x5F') #Header
+        self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
+        self.wfile.write(b'\x00') #NUL
+        self.wfile.flush()
+
+    def respond_gs_r(self) -> bytes:
+        #Consume and process one GS r request
+        if self.netprinter_debugmode == 'True': 
+            print("GS r request", flush=True)
+        next_in:bytes = self.rfile.read1(1)  #The n is at most 1 byte
+        match next_in:
+            case b'\x01':  #n=1
+                #Send paper status adequate and present
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Paper status sent", flush=True) 
+            case b'\x31':  #n=49
+                #Send paper status adequate and present (alternate)
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Paper status sent", flush=True) 
+            case b'\x02':  #n=2
+                #Send drawer kick-out connector status
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Drawer kick-out status sent", flush=True) 
+            case b'\x32':  #n=50
+                #Send drawer kick-out connector status (alternate)
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Drawer kick-out status sent", flush=True) 
+            case b'\x04':  #n=4
+                #Send ink status adequate
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Ink status sent", flush=True) 
+            case b'\x34':  #n=52
+                #Send ink status adequate
+                self.wfile.write(b'\x00')
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Ink status sent", flush=True)
+            case _:
+                if self.netprinter_debugmode == 'True':
+                    print("Unknown GS r request received: " + next_in, flush=True)
+        return next_in
+    
+    def respond_gs_parens(self) -> bytes:
+        #Consume and process one GS ( request
+
+        next_in:bytes = self.rfile.read(1) #Start with getting the next byte
+        match next_in:
+            case b'\x45': #E
+                #Set user setup command
+                pL:bytes = self.rfile.read(1) # Get pL byte 
+                pH:bytes = self.rfile.read(1) # Get pH byte
+                fn:bytes = self.rfile.read(1) # Get fn byte
+                next_in = next_in + pL + pH + fn # Send these bytes forward in all cases
+                match fn:
+                    case b'\x01':
+                        # Respond to user setting mode start request
+                        next_in = next_in + self.rfile.read(2) #read d1 and d2
+                        self.wfile.write(b'\x37\x20\x00')  # Respond OK
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("Mode change notice sent", flush=True)
+
+                    case b'\x04':
+                        # Respond with settings of the memory switches
+                        a:bytes = self.rfile.read(1)  #read a
+                        next_in = next_in + a
+                        match a:
+                            case b'\x01':
+                                # Respond with: Power-on notice disabled, Receive buffer large, busy when buffer full, 
+                                #               receive error ignored, auto line-feed disabled, DM-D not connected,
+                                #               RS-232 pins 6 and 25 not used.
+                                response:bytes = b'\x30\x30\x31\x31\x30\x30\x30\x30'
+                                self.wfile.write(b'\x37\x21' + response + b'\x00') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Msw1 switches sent", flush=True)
+                            case b'\x02':
+                                # Respond with: Autocutter enabled and chinese character code GB2312.
+                                response:bytes = b'\x31\x31\x31\x30\x30\x30\x30\x30'
+                                self.wfile.write(b'\x37\x21' + response + b'\x00') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Msw2 switches sent", flush=True)
+                            case _:
+                                if self.netprinter_debugmode == 'True':
+                                    print("Unknown switch set requested", flush=True)
+
+                    case b'\x06': #6
+                        """ TODO: This one has a LOT of info to return.  TBD later.
+                        a:bytes = self.rfile.read(1)  #read a
+                        next_in = next_in + a
+                         match a:
+                            case b'\x01':
+                                #Memory capacity
+                                response:bytes = b''
+                                self.wfile.write(b'\x37\x27' + a + b'\x1F' + response + b'\x00') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Customized setting {a} sent", flush=True) """
+                        pass
+
+                    case b'\x0C': # 12
+                        """TODO: this one is ofr serial flow control.  Probably never happens over Ethernet"""
+                        pass
+
+                    case b'\x0E':  #14
+                        """TODO: this one is for Bluetooth interface config.  Probably never happens over Ethernet"""
+                        pass
+
+                    case b'\x10':  #16
+                        """TODO: this one is for USB interface config.  Probably never happens over Ethernet"""
+                        pass
+
+                    case b'\x32':  #50
+                        # Transmit the paper layout information
+                        n:bytes = self.rfile.read(1)  #read a
+                        next_in = next_in + n
+                        match n:
+                            case b'\x40' | b'\x50':  #64 (set) or 80(actual)
+                                #Setting values - only useful for labels so not used
+                                separator = b'\x1F'
+                                sa = b'48' #Paper layout is not used
+                                sb = b'' #Value omitted
+                                sc = b'' #Value omitted
+                                sd = b'' #Value omitted
+                                se = b'' #Value omitted
+                                se = b'' #Value omitted
+                                response:bytes = sa+separator+sb+separator+sc+separator+sd+separator+se
+                                self.wfile.write(b'\x37\x39' + n + b'\x1F' + response + b'\x00') 
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("Paper layout sent", flush=True)
+                            case _:
+                                if self.netprinter_debugmode == 'True':
+                                    print("Unknown paper layout info request: " + next_in, flush=True)
+
+
+                    case b'\x64':  #100:
+                        #Transmit internal buzzer patterns
+                        a:bytes = self.rfile.read(1)  #read a, the desired pattern
+                        next_in = next_in + a
+
+                        # [n m1 t1 m2 t2 m3 t3 m4 t4 m5 t5 m6 t6] (13 bytes) is processed as one sound pattern. 
+                        # When the setting of "Duration time" is (t = 0), it is 1-byte data of "0" [Hex = 30h / Decimal = 48].
+                        # When the setting of "Duration time" is (t = 100), it is 3-byte data of "100" [Hex = 31h, 30h, 30h / Decimal = 49, 48, 48].
+                        # NOTE: there is no mention in the spec for the m fields, so I will assume it's the same as t:  char-to-hex.
+
+                        # Our pattern will be "silence for 0 seconds, 6 times"
+                        pattern = b'000000000000' 
+                        self.wfile.write(a + pattern + b'\x00')  #The data has to be sent "Header to NUL" with a as a header.
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("Buzzer pattern sent", flush=True)
+
+                    case _:
+                        #Any other functions that do not transmit data back
+                        if self.netprinter_debugmode == 'True':
+                            print("Non-responding GS ( E command received: " + next_in + pL + pH + fn, flush=True)
+               
+            case b'\x48': #H
+                #TODO: Transmission of response or status
+                pass
+
+            case _:
+                if self.netprinter_debugmode == 'True':
+                    print("Non-status GS ( request received: " + next_in, flush=True)
+        
+        return next_in
+
+
+    def respond_dle_eot(self) -> bytes:
+        # Consume and process one DLE EOT command and return the processed bytes
+        if self.netprinter_debugmode == 'True':
+            print("DLE EOT request", flush=True)
+        next_in:bytes = self.rfile.read1(1)  #The ops are 1 or 2 bytes, check the first
+        match next_in:
+            case b'\x01':
+                # Send printer status OK
+                self.wfile.write(b'\x16') 
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Printer status sent", flush=True)
+            case b'\x04':
+                # Send roll paper status "present and adequate"
+                self.wfile.write(b'\x12') 
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Paper status sent", flush=True)   
+            case _:
+                #2 byte ops are not relevant, so we ignore them after consuming the second byte -> NOTE: this could block the print.
+                next_in = next_in + self.rfile.read(1)  #NOTE: this will block if there are no more bytes in the stream.
+        return next_in
             
             
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
+    # Implémente les blocs "Main processing" et "Mechanism" de l'APG Epson.
     def print_toHTML(self, binfile:BufferedWriter, bin_filename:PurePath):
 
         print("Printing ", binfile.name)
