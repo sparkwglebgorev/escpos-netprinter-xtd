@@ -27,7 +27,7 @@ class ESCPOSServer(socketserver.TCPServer):
 class ESCPOSHandler(socketserver.StreamRequestHandler):
     
     """
-        TODO:  peut-être implémenter certains codes de statut plus tard.  Voir l'APG Epson section "Processing the Data Received from the Printer"
+        Voir l'APG Epson section "Processing the Data Received from the Printer"
     """
     timeout = 10  #On abandonne une réception après 10 secondes - un compromis pour assurer que tout passe sans se bourrer de connections zombies.
     netprinter_debugmode = "false"
@@ -106,6 +106,46 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     #This is not a status request
                                     if self.netprinter_debugmode == True:
                                         print(f"Almost-status bytes: {indata_statuscheck}", flush=True)
+                        case b'\x1C':  #FS
+                            indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
+                            match indata_statuscheck:
+                                case b'\x1C\x28':
+                                    #This a FS ( request
+                                    fs_parens_data:bytes = self.respond_fs_parens()
+                                    indata_statuscheck = indata_statuscheck + fs_parens_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"FS ( received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case b'\x1C\x26' | b'\x1C\x2E':
+                                    #Subrequests with zero argument bytes
+                                    pass
+                                
+                                case b'\x1C\x21' | b'\x1C\x2D' | b'\x1C\x43'| b'\x1C\x57':
+                                    #Subrequests with one argument byte
+                                    #Munch on it and pass it on
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(1)
+                                
+                                case b'\x1C\x3F' | b'\x1C\x53' | b'\x1C\x70':
+                                    #Subrequests with 2 argument bytes
+                                    #Munch on em and pass it on
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(2)
+
+                                case b'\x1C\x32':
+                                    #TODO: FS 2 command has c1 c2 then k bits (arbitrarily decided by the printer??)
+                                    pass
+
+                                case b'\x1C\x67':
+                                    #TODO: FS g 1 has m then 4 a bytes then nl, ng then (nL + nH × 256) data bytes
+                                    #TODO: FS g 2 has m then 4 a bytes then nl, ng.  sends back "header to NUL"
+                                    pass
+
+                                case b'\x1C\x71':
+                                    #TODO: FS q has n then a ton of bytes.   I just can't.
+                                    pass
+
+                                case _:
+                                    if self.netprinter_debugmode == 'True':
+                                        print("Unknown FS request received: " + indata_statuscheck, flush=True)
                         case _:
                             #This byte is uninteresting data for this block's purposes, no processing necessary.
                             pass
@@ -172,10 +212,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     
                     case b'\x02':
                         #Transmit the 4 bytes of the all-clear extended ASB status like FS ( e 
-                        self.wfile.write(b'\x39\x00\x40\x00')
-                        self.wfile.flush()
-                        if self.netprinter_debugmode == 'True':
-                            print("4-byte extended ASB status sent", flush=True) 
+                        self.send_extended_ASB_OK()
                     
                     case b'\x04':
                         #Transmit the offline response like GS ( H <f=49>
@@ -194,8 +231,58 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     print("Non-status DLE DC4 request received: " + next_in, flush=True)
         return next_in
 
-    def respond_fs_parens_e(self) -> bytes:
-        pass
+    def respond_fs_parens(self) -> bytes:
+        #Consume and process one FS ( request
+        if self.netprinter_debugmode == 'True': 
+            print("FS ( request", flush=True)
+        next_in:bytes = self.rfile.read1(1)  #The n is at most 1 byte
+        match next_in:
+            case b'\x65':  # e
+                # Enable/disable Automatic Status Back (ASB) for optional functions (extended status)
+                #  First, get the next bytes
+                pL:bytes = self.rfile.read(1) # Get pL byte 
+                pH:bytes = self.rfile.read(1) # Get pH byte
+                m:bytes = self.rfile.read(1) # Get m byte
+                n:bytes = self.rfile.read(1) # Get n byte
+                next_in = next_in + pL + pH + m + n # Send these bytes forward in all cases
+
+                match n:
+                    case b'\x00':
+                        #Request disable ASB:  nothing to return
+                        pass
+                    case _:
+                        #Enabling any status (specifying n != 0) starts extended ASB
+                        self.send_extended_ASB_OK() 
+
+            case b'\x41'| b'\x43' | b'\x45' | b'\x4C': # A, C or E :  
+                # These are not relevant functions, so we consume those bytes and send them forward.
+                # These all include pl, ph, fn and some bytes.  
+                # pL and pH specify the number of bytes following fn as (pL + (pH × 256)). 
+
+                #  First, get the size and fn bytes
+                pL:int = int.from_bytes(self.rfile.read(1), "big") # Get pL value 
+                pH:int = int.from_bytes(self.rfile.read(1), "big") # Get pH value
+                fn:bytes = self.rfile.read(1) # Get fn byte
+                next_in = next_in + pL + pH + fn
+
+                num_bytes:int = pL + (pH * 256) # Range:  1 - 65535
+                if num_bytes == 0:
+                    print("Error:  zero-byte-long argument specified", flush=True)
+                
+                next_in = next_in + self.rfile.read(num_bytes) # Send these bytes forward in all cases
+
+            case _:
+                if self.netprinter_debugmode == 'True':
+                    print("Unknown FS ( request received: " + next_in, flush=True)
+
+        return next_in
+
+    def send_extended_ASB_OK(self):
+        #Return all-clear extended ASB status (\x00)
+        self.wfile.write(b'\x39\x00\x40\x00')  
+        self.wfile.flush()
+        if self.netprinter_debugmode == 'True':
+            print("4-byte extended ASB status sent", flush=True)
 
     def respond_gs_g(self) -> bytes:
         #Consume a GS G request and respond to <fn=2>
@@ -220,6 +307,23 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
     def respond_gs_i(self) -> bytes:
         #Consume and process one GS i request
+
+        #First, define inner helper functions
+        def send_gs_i_printer_info_A(contents:bytes) -> None:
+            #Helper to respond with Printer Info A
+            self.wfile.write(b'\x3D') #Header
+            self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
+            self.wfile.write(b'\x00') #NUL
+            self.wfile.flush()
+    
+        def send_gs_i_printer_info_B(contents:bytes) -> None:
+            #Helper to respond with Printer Info B
+            self.wfile.write(b'\x5F') #Header
+            self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
+            self.wfile.write(b'\x00') #NUL
+            self.wfile.flush()
+
+        # Let's do this
         if self.netprinter_debugmode == 'True': 
             print("GS i request", flush=True)
         next_in:bytes = self.rfile.read1(1)  #The n is at most 1 byte
@@ -251,32 +355,32 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 first_byte = b'\x02' # No multi-byte chars, autocutter installed, no DM-D
                 second_byte = b'\x40' #Fixed
                 third_byte = b'\x40'  #No peeler.
-                self.send_gs_i_printer_info_A(next_in + first_byte + second_byte + third_byte)
+                send_gs_i_printer_info_A(next_in + first_byte + second_byte + third_byte)
                 if self.netprinter_debugmode == 'True':
                     print("Printer supported functions sent", flush=True)                 
 
             case b'\x41': # 65
                 #Transmit printer firmware version
-                self.send_gs_i_printer_info_B(b'netprinter_1')
+                send_gs_i_printer_info_B(b'netprinter_1')  #TODO: choose a version number
                 if self.netprinter_debugmode == 'True':
                     print("Printer firmware version sent", flush=True) 
 
             case b'\x42' | b'\x43':  # 66 or 67
                 #Transmit maker name or model name - could be different but not important.
-                self.send_gs_i_printer_info_B(b'ESCPOS-netprinter')
+                send_gs_i_printer_info_B(b'ESCPOS-netprinter')
                 if self.netprinter_debugmode == 'True':
                     print("Printer maker or model name sent", flush=True) 
           
             case b'\x44': # 68
                 #Transmit printer serial number
-                self.send_gs_i_printer_info_B(b'netprinter_1')
+                send_gs_i_printer_info_B(b'netprinter_1')
                 if self.netprinter_debugmode == 'True':
                     print("Printer serial sent", flush=True) 
 
             case b'\x45': # 69
                 #Transmit printer font of language
-                # TODO: we will send an empty response but testing is needed
-                self.send_gs_i_printer_info_B(b'')
+                # TODO: we send an empty response but testing is needed
+                send_gs_i_printer_info_B(b'')
                 if self.netprinter_debugmode == 'True':
                     print("Empty language sent", flush=True) 
 
@@ -285,20 +389,6 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     print("Unknown GS i request received: " + next_in, flush=True)
 
         return next_in
-
-    def send_gs_i_printer_info_A(self, contents:bytes) -> None:
-        #Helper to respond with Printer Info B
-        self.wfile.write(b'\x3D') #Header
-        self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
-        self.wfile.write(b'\x00') #NUL
-        self.wfile.flush()
-    
-    def send_gs_i_printer_info_B(self, contents:bytes) -> None:
-        #Helper to respond with Printer Info B
-        self.wfile.write(b'\x5F') #Header
-        self.wfile.write(contents[:80])  # Max 80 bytes here, so send only that slice
-        self.wfile.write(b'\x00') #NUL
-        self.wfile.flush()
 
     def respond_gs_r(self) -> bytes:
         #Consume and process one GS r request
@@ -350,7 +440,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     def respond_gs_parens(self) -> bytes:
         #Consume and process one GS ( request
 
-        next_in:bytes = self.rfile.read(1) #Start with getting the next byte
+        next_in:bytes = self.rfile.read(1) #Start by getting the next byte
         match next_in:
             case b'\x45': #E
                 #Set user setup command
@@ -407,7 +497,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                         pass
 
                     case b'\x0C': # 12
-                        """TODO: this one is ofr serial flow control.  Probably never happens over Ethernet"""
+                        """TODO: this one is for serial flow control.  Probably never happens over Ethernet"""
                         pass
 
                     case b'\x0E':  #14
@@ -420,7 +510,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
                     case b'\x32':  #50
                         # Transmit the paper layout information
-                        n:bytes = self.rfile.read(1)  #read a
+                        n:bytes = self.rfile.read(1)  #read n
                         next_in = next_in + n
                         match n:
                             case b'\x40' | b'\x50':  #64 (set) or 80(actual)
@@ -432,7 +522,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                 sd = b'' #Value omitted
                                 se = b'' #Value omitted
                                 se = b'' #Value omitted
-                                response:bytes = sa+separator+sb+separator+sc+separator+sd+separator+se
+                                response:bytes = sa +separator+ sb +separator+ sc +separator+ sd +separator+ se
                                 self.wfile.write(b'\x37\x39' + n + b'\x1F' + response + b'\x00') 
                                 self.wfile.flush()
                                 if self.netprinter_debugmode == 'True':
@@ -441,12 +531,12 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                 if self.netprinter_debugmode == 'True':
                                     print("Unknown paper layout info request: " + next_in, flush=True)
 
-
                     case b'\x64':  #100:
                         #Transmit internal buzzer patterns
                         a:bytes = self.rfile.read(1)  #read a, the desired pattern
                         next_in = next_in + a
 
+                        # Extracted from the Epson docs:
                         # [n m1 t1 m2 t2 m3 t3 m4 t4 m5 t5 m6 t6] (13 bytes) is processed as one sound pattern. 
                         # When the setting of "Duration time" is (t = 0), it is 1-byte data of "0" [Hex = 30h / Decimal = 48].
                         # When the setting of "Duration time" is (t = 100), it is 3-byte data of "100" [Hex = 31h, 30h, 30h / Decimal = 49, 48, 48].
@@ -462,10 +552,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     case _:
                         #Any other functions that do not transmit data back
                         if self.netprinter_debugmode == 'True':
-                            print("Non-responding GS ( E command received: " + next_in + pL + pH + fn, flush=True)
+                            print("No-response-needed GS ( E command received: " + next_in + pL + pH + fn, flush=True)
                
             case b'\x48': #H
-                #TODO: Transmission of response or status
+                #TODO: Transmission + response or status
                 pass
 
             case _:
@@ -494,7 +584,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 if self.netprinter_debugmode == 'True':
                     print("Paper status sent", flush=True)   
             case _:
-                #2 byte ops are not relevant, so we ignore them after consuming the second byte -> NOTE: this could block the print.
+                #2 byte ops are not relevant for this project, so we ignore them after consuming the second byte -> NOTE: this could block the print.
                 next_in = next_in + self.rfile.read(1)  #NOTE: this will block if there are no more bytes in the stream.
         return next_in
             
