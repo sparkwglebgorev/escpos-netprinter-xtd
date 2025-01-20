@@ -257,19 +257,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             case b'\x41'| b'\x43' | b'\x45' | b'\x4C': # A, C or E :  
                 # These are not relevant functions, so we consume those bytes and send them forward.
                 # These all include pl, ph, fn and some bytes.  
-                # pL and pH specify the number of bytes following fn as (pL + (pH × 256)). 
-
-                #  First, get the size and fn bytes
-                pL:int = int.from_bytes(self.rfile.read(1), "big") # Get pL value 
-                pH:int = int.from_bytes(self.rfile.read(1), "big") # Get pH value
-                fn:bytes = self.rfile.read(1) # Get fn byte
-                next_in = next_in + pL + pH + fn
-
-                num_bytes:int = pL + (pH * 256) # Range:  1 - 65535
-                if num_bytes == 0:
-                    print("Error:  zero-byte-long argument specified", flush=True)
                 
-                next_in = next_in + self.rfile.read(num_bytes) # Send these bytes forward in all cases
+                #  First, get the size and fn bytes
+                pL:bytes = self.rfile.read(1) # Get pL byte 
+                pH:bytes = self.rfile.read(1) # Get pH byte
+                fn:bytes = self.rfile.read(1) # Get fn byte
+
+                next_in = next_in + pL + pH + fn + self.consume_parameter_data(pL, pH) # Send these bytes forward in all cases
 
             case _:
                 if self.netprinter_debugmode == 'True':
@@ -550,13 +544,14 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                             print("Buzzer pattern sent", flush=True)
 
                     case _:
-                        #Any other functions that do not transmit data back
+                        #Any other functions that do not transmit data back - we consume the parameter bytes.
                         if self.netprinter_debugmode == 'True':
-                            print("No-response-needed GS ( E command received: " + next_in + pL + pH + fn, flush=True)
+                            print("No-response-needed GS ( E command received: " + next_in, flush=True)
+                        next_in = next_in + self.consume_parameter_data(pL, pH)
                
             case b'\x48': #H
-                #TODO: Transmission + response or status
-                pass
+                #Transmission + response or status (not for OPOS or Java POS, and very mysterious and printer-dependant)
+                next_in = next_in + self.process_gs_parens_h()
 
             case _:
                 if self.netprinter_debugmode == 'True':
@@ -588,7 +583,45 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 next_in = next_in + self.rfile.read(1)  #NOTE: this will block if there are no more bytes in the stream.
         return next_in
             
-            
+    def process_gs_parens_h(self) -> bytes:
+        #Transmission + response or status (not for OPOS or Java POS, and very mysterious and printer-dependant)
+        #Since it is printer-dependant, we will simply consume the data and continue.   The spec does not mention that this could block the print.
+        
+        if self.netprinter_debugmode == 'True':
+            print("GS ( H request received")
+
+        #  First, get the size and fn bytes
+        pL:bytes = self.rfile.read(1) # Get pL value 
+        pH:bytes = self.rfile.read(1) # Get pH value
+        fn:bytes = self.rfile.read(1) # Get fn byte
+                
+        next_in = next_in + pL + pH + fn + self.consume_parameter_data(pL, pH)
+       
+        return next_in
+
+    def consume_parameter_data(pL:bytes, pH:bytes, self) -> bytes:
+        #Consume parameter data without processing for a length specified by pL and pH
+
+        num_bytes = self.calculatearam_length(pL, pH)
+        
+        parameters:bytes = b''
+        if num_bytes == 0:
+            print("Error:  zero-byte-long argument specified", flush=True)
+        else:
+            parameters =  self.rfile.read(num_bytes) # Send these bytes forward in all cases
+
+        return parameters
+
+    def calculate_param_length(pL:bytes, pH:bytes) -> int:
+        #Calculate the parameter size from pL and pH
+        # pL and pH specify the number of bytes following as (pL + (pH × 256)). 
+        
+        low:int = int.from_bytes(pL, "big")
+        high:int = int.from_bytes(pH, "big")
+        num_bytes:int = low + (high * 256) # Range:  1 - 65535
+
+        return num_bytes
+
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
     # Implémente les blocs "Main processing" et "Mechanism" de l'APG Epson.
