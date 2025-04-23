@@ -1,12 +1,12 @@
 #On part de l'image php-cli "latest" sur Debian
 #FROM php:cli
-#Contournement temporaire:  imagick a un problème, mais pas sur php8.2
-FROM php:8.2-cli
+FROM php:8.4-cli
 
 #On va utiliser l'utilitaire "install-php-extensions" au lieu de PECL car il marche mieux.
 #Voir:  https://github.com/mlocati/docker-php-extension-installer
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
-RUN chmod +x /usr/local/bin/install-php-extensions
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+
+#Installer les prérequis chillerlan/php-qrcode: composer, mbstring, imagick
 RUN install-php-extensions mbstring @composer imagick
 
 #Install Flask
