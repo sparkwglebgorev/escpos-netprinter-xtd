@@ -55,25 +55,11 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 
                 while (indata_statuscheck := self.rfile.read(1)):
                     match indata_statuscheck:
-                        case b'\x10' | b'\x1D' :  # DLE or GS
+                        case  b'\x1D' :  # GS
                             #This is potentially a status request.
                             indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
 
                             match indata_statuscheck:
-                                case b'\x10\x04':
-                                    # Respond to DLE EOT status requests
-                                    dle_eot_data:bytes = self.respond_dle_eot()
-                                    indata_statuscheck = indata_statuscheck + dle_eot_data #append the DLE EOT bytes to the processed bytes
-                                    if self.netprinter_debugmode == True:
-                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
-
-                                case b'\x10\x14':
-                                    # Respond to DLE DC4 <fn=7> 
-                                    dle_dc4_data: bytes = self.respond_dle_dc4()
-                                    indata_statuscheck = indata_statuscheck + dle_dc4_data
-                                    if self.netprinter_debugmode == True:
-                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
-
                                 case b'\x1D\x72':
                                     #Respond to GS r status requests
                                     gs_r_data:bytes = self.respond_gs_r()
@@ -102,15 +88,122 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     if self.netprinter_debugmode == True:
                                         print(f"GS ( received containing {len(indata_statuscheck)} bytes", flush=True)
 
+                                case b'\x1D\x3A' | b'\x1D\x63':
+                                    #Subrequests with zero argument bytes
+                                    pass
+                                
+                                case b'\x1D\x21' | b'\x1D\x42' | b'\x1D\x62'| b'\x1D\x2F' | b'\x1D\x42':
+                                    #Subrequests with one argument byte
+                                    #Munch on it and pass it on
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(1)
+                                    
+                                case b'\x1D\x43' :
+                                    # GS C: obsolete commands
+                                    #Munch on it and pass it on
+                                    next_byte:bytes = self.rfile.read(1)
+                                    match next_byte:
+                                        case b'\x30':
+                                            # GS C 0 - counter print mode
+                                            next_byte = next_byte + self.rfile.read(2)
+                                            
+                                        case b'\x31':
+                                            # GS C 1 Select count mode
+                                            next_byte = next_byte + self.rfile.read(6)
+                                            
+                                        case b'\x32':
+                                            # GS C 2
+                                            next_byte = next_byte + self.rfile.read(2)
+                                            
+                                        case b'\x3B':
+                                            # GS C ; - 5 bytes with separators
+                                            next_byte = next_byte + self.rfile.read(10)
+                                    
+                                    indata_statuscheck = indata_statuscheck + next_byte
+                                
+                                case b'\x1D\x44':
+                                    # GS D has 2 functions.
+                                    m:bytes = self.rfile.read(1)
+                                    fn:bytes = self.rfile.read(1)
+                                    match fn:
+                                        case b'\x43':
+                                            # TODO: <fn=63> Define Windows BMP NV graphics data
+                                            pass
+                                        case b'\x53':
+                                            # TODO: <fn=83> Define Windows BMP download graphics data
+                                            pass
+                                        
+                                #TODO:  all GS functions after GS D are missing here!    
+                                
+                                case b'\x1D\x2A':
+                                    # GS * define downloaded image
+                                    x:bytes = self.rfile.read(1)
+                                    y:bytes = self.rfile.read(1)
+                                    
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(int.from_bytes(x) * int.from_bytes(y) * 8)
+                                    if self.netprinter_debugmode == True:
+                                        print(f"GS * received containing {len(indata_statuscheck)} bytes", flush=True)
+                                    
+                                
                                 case _:
                                     #This is not a status request
                                     if self.netprinter_debugmode == True:
                                         print(f"Almost-status bytes: {indata_statuscheck}", flush=True)
+                        
+                        case b'\x10' :  # DLE 
+                            #This is potentially a status request.
+                            indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
+
+                            match indata_statuscheck:
+                                case b'\x10\x04':
+                                    # Respond to DLE EOT status requests
+                                    dle_eot_data:bytes = self.respond_dle_eot()
+                                    indata_statuscheck = indata_statuscheck + dle_eot_data #append the DLE EOT bytes to the processed bytes
+                                    if self.netprinter_debugmode == True:
+                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case b'\x10\x14':
+                                    # Respond to DLE DC4 <fn=7> 
+                                    dle_dc4_data: bytes = self.respond_dle_dc4()
+                                    indata_statuscheck = indata_statuscheck + dle_dc4_data
+                                    if self.netprinter_debugmode == True:
+                                        print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
+
+                                case _:
+                                    #This is not a status request
+                                    if self.netprinter_debugmode == True:
+                                        print(f"Almost-status bytes: {indata_statuscheck}", flush=True)
+
+                        case b'\1B' :  # ESC
+                            #This is potentially a status request.
+                            indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
+
+                            match indata_statuscheck:
+                                case b'\x1B\x76':
+                                    # Respond to ESC v request
+                                    self.wfile.write(b'\x00') #Send the all-clear
+                                    if self.netprinter_debugmode == True:
+                                        print(f"ESC v received containing {len(indata_statuscheck)} bytes", flush=True)
+                                
+                                case b'\x1B\x75':
+                                    #Respond to ESC u request
+                                    #Read the n byte
+                                    n:bytes = self.rfile.read(1)
+                                    self.wfile.write(b'\x00')  #Respond drawer kick-out LOW
+                                    indata_statuscheck = indata_statuscheck + n
+                                    if self.netprinter_debugmode == True:
+                                        print(f"ESC u received containing {len(indata_statuscheck)} bytes", flush=True)
+                                        
+                                case _:
+                                    # All other ESC commands have one n byte
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(1)
+                                    if self.netprinter_debugmode == True:
+                                        print(f"Non-blocking ESC command received: {indata_statuscheck}", flush=True)
+                        
                         case b'\x1C':  #FS
                             indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
                             match indata_statuscheck:
                                 case b'\x1C\x28':
-                                    #This a FS ( request
+                                    #This an FS ( request
                                     fs_parens_data:bytes = self.respond_fs_parens()
                                     indata_statuscheck = indata_statuscheck + fs_parens_data
                                     if self.netprinter_debugmode == True:
@@ -131,17 +224,62 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     indata_statuscheck = indata_statuscheck + self.rfile.read(2)
 
                                 case b'\x1C\x32':
-                                    #TODO: FS 2 command has c1 c2 then k bits (arbitrarily decided by the printer??)
-                                    pass
+                                    #FS 2 command has c1 c2 then k bits (arbitrarily decided by the printer.   We'll munch 32  as in the APG)
+                                    indata_statuscheck = indata_statuscheck + self.rfile.read(4)  # Munch 4 bytes (32 bits)
 
                                 case b'\x1C\x67':
-                                    #TODO: FS g 1 has m then 4 a bytes then nl, ng then (nL + nH × 256) data bytes
-                                    #TODO: FS g 2 has m then 4 a bytes then nl, ng.  sends back "header to NUL"
-                                    pass
+                                    # FS g
+                                    
+                                    next_byte:bytes = self.rfile.read(1)
+                                    match next_byte:
+                                        case b'\x31':
+                                            # FS g 1 - write to NV memory
+                                            # FS g 1 has m then 4 a bytes then nl, ng then (nL + nH × 256) data bytes
+                                            next_byte = next_byte + self.rfile.read(4) #munch on unused bytes
+                                            # then read pL and pH
+                                            pL:bytes = self.rfile.read(1)
+                                            pH:bytes = self.rfile.read(1)
+                                            
+                                            #send all that data forward
+                                            next_byte = next_byte + pL + pH + self.consume_parameter_data(pL, pH)
+                                            
+                                        case b'\x32':
+                                            # FS g 2 - read from NV user memory
+                                            # FS g 2 has m then 4 a bytes then nl, ng.  Must send back "header to NUL"
+                                            next_byte = next_byte + self.rfile.read(5) #munch on unused bytes
+                                            # Get the expected number of bytes to send
+                                            nL:bytes = self.rfile.read(1)
+                                            nH:bytes = self.rfile.read(1)
+                                            nb_bytes = int.from_bytes(nL)  + int.from_bytes(nH) * 256
+                                            self.wfile.write(b'\x5f') #Send the header
+                                            self.wfile.write(b'\x0F' * nb_bytes) #Send "data"
+                                            self.wfile.write(b'\x00') #Send NULL
+                                            self.wfile.flush()
+                                            #send all the received data forward
+                                            next_byte = next_byte + nL + nH
+                                            
+                                    indata_statuscheck = indata_statuscheck + next_byte
+                                    if self.netprinter_debugmode == True:
+                                        print(f"FS g received containing {len(indata_statuscheck)} bytes", flush=True)
 
                                 case b'\x1C\x71':
-                                    #TODO: FS q has n then a ton of bytes.   I just can't.
-                                    pass
+                                    # FS q - store non-volatile raster graphics.
+                                    # get n - the number if images to munch on
+                                    n:bytes = self.rfile.read(1)
+                                    indata_statuscheck = indata_statuscheck + n
+                                    
+                                    for i in range(int.from_bytes(n)):
+                                        # munch on one image and pass it on
+                                        xL = self.rfile.read(1)
+                                        xH = self.rfile.read(1)
+                                        yL = self.rfile.read(1)
+                                        yH = self.rfile.read(1)
+                                        
+                                        indata_statuscheck = indata_statuscheck + self.consume_byte_array(xL, xH, yL, yH)
+                                        
+                                    if self.netprinter_debugmode == True:
+                                        print(f"FS q received containing {len(indata_statuscheck)} bytes", flush=True)
+                                        
 
                                 case _:
                                     if self.netprinter_debugmode == 'True':
@@ -216,8 +354,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     
                     case b'\x04':
                         #Transmit the offline response like GS ( H <f=49>
-                        #TODO: The spec is not very clear on how to respond since GS ( h is a configuration request
-                        pass
+                        self.respond_gs_parens_H_49()
 
                     case _:
                         if self.netprinter_debugmode == 'True':
@@ -248,7 +385,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
                 match n:
                     case b'\x00':
-                        #Request disable ASB:  nothing to return
+                        #Request to disable ASB:  nothing to return
                         pass
                     case _:
                         #Enabling any status (specifying n != 0) starts extended ASB
@@ -551,7 +688,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                
             case b'\x48': #H
                 #Transmission + response or status (not for OPOS or Java POS, and very mysterious and printer-dependant)
-                next_in = next_in + self.process_gs_parens_h()
+                next_in = next_in + self.process_gs_parens_H()
 
             case _:
                 if self.netprinter_debugmode == 'True':
@@ -583,7 +720,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 next_in = next_in + self.rfile.read(1)  #NOTE: this will block if there are no more bytes in the stream.
         return next_in
             
-    def process_gs_parens_h(self) -> bytes:
+    def process_gs_parens_H(self) -> bytes:
         #Transmission + response or status (not for OPOS or Java POS, and very mysterious and printer-dependant)
         #Since it is printer-dependant, we will simply consume the data and continue.   The spec does not mention that this could block the print.
         
@@ -596,8 +733,14 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         fn:bytes = self.rfile.read(1) # Get fn byte
                 
         next_in = next_in + pL + pH + fn + self.consume_parameter_data(pL, pH)
+        
+        self.respond_gs_parens_H_49()
        
         return next_in
+
+    def respond_gs_parens_H_49(self):
+        #Send the "not offline" response, header-to-null.
+        self.wfile.write(b'\x37\x23\x00')
 
     def consume_parameter_data(pL:bytes, pH:bytes, self) -> bytes:
         #Consume parameter data without processing for a length specified by pL and pH
@@ -621,6 +764,22 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         num_bytes:int = low + (high * 256) # Range:  1 - 65535
 
         return num_bytes
+
+    def consume_byte_array(xL:bytes, xH:bytes, yL:bytes, yH:bytes, self) -> bytes:
+        #Consume a byte array without processing of a size defined by xL, xH, yL and yH
+        num_x = self.calculate_param_length(xL, xH)
+        num_y = self.calculate_param_length(yL, yH)
+        
+        num_bytes = num_x * num_y * 8
+        
+        byte_array:bytes = b''
+        if num_bytes == 0:
+            print("Error:  zero-byte-long argument specified", flush=True)
+        else:
+            byte_array =  self.rfile.read(num_bytes) # Send these bytes forward in all cases
+            
+        return byte_array
+        
 
 
     #Convertir l'impression recue en HTML et la rendre disponible à Flask
