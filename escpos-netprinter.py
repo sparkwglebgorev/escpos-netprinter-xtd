@@ -246,7 +246,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                         print(f"DLE EOT received containing {len(indata_statuscheck)} bytes", flush=True)
 
                                 case b'\x10\x14':
-                                    # Respond to DLE DC4 <fn=7> 
+                                    # Respond to DLE DC4 
                                     dle_dc4_data: bytes = self.respond_dle_dc4()
                                     indata_statuscheck = indata_statuscheck + dle_dc4_data
                                     if self.netprinter_debugmode == True:
@@ -456,13 +456,12 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         return gs_j_data
 
     def respond_dle_dc4(self) -> bytes:
-        #Consume a DLE DC4 request and respond to <fn=7>
+        #Consume a DLE DC4 request and respond to functions 1, 2, 3, 7 and 8
         if self.netprinter_debugmode == 'True': 
             print("DLE DC4 request", flush=True)
         next_in:bytes = self.rfile.read(1)  #Get the first byte
         match next_in:
             case b'\x07':
-                # Respond to a real-time ASB request
                 m:bytes = self.rfile.read(1)
                 match m:
                     case b'\x01':
@@ -475,18 +474,46 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     
                     case b'\x04':
                         #Transmit the offline response like GS ( H <f=49>
-                        self.respond_gs_parens_H_49()
+                        self.wfile.write(b'\x37\x23\x00') #Send the empty Offline response to the client
+                        
+                    case b'\x05':
+                        #Transmit battery status - printer dependent so we send anything
+                        self.wfile.write(b'\x01')
 
                     case _:
                         if self.netprinter_debugmode == 'True':
-                            print("Unknown DLE DC4 <fn=7> request received: " + m, flush=True)
+                            print("Unknown DLE DC4 <fn=7> request received: " + next_in, flush=True)
 
                 next_in = next_in + m
 
+            case b'\x01':
+                #Generate pulse - no need to respond, so we munch on the 2 extra bytes
+                next_in = next_in + self.rfile.read(2)
+
+            case b'\x02':
+                #Power-off sequence
+                #Munch on the 2 extra fixed bytes
+                next_in = next_in + self.rfile.read(2)
+                #send the power-off notice
+                self.wfile.write(b'\x3B\x30\x00') 
+                #Here a physical printer would stop everything, but we will go on.
+            
+            case b'\x03':
+                #Sound buzzer - no need to respond, so we munch on the 4 extra bytes.
+                next_in = next_in + self.rfile.read(4)
+            
+            case b'\x08':
+                #Clear buffer(s)
+                #Munch on the 7 extra fixed bytes
+                next_in = next_in + self.rfile.read(7)
+                #Send the Buffer Clear response
+                self.wfile.write(b'\x37\x25\x00') 
+            
             case _:
                 #This request is about something else, nothing to do.
                 if self.netprinter_debugmode == 'True':
-                    print("Non-status DLE DC4 request received: " + next_in, flush=True)
+                    print("Unknown DLE DC4 request received: " + next_in, flush=True)
+                    
         return next_in
 
     def respond_fs_parens(self) -> bytes:
@@ -986,15 +1013,42 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 self.wfile.flush()
                 if self.netprinter_debugmode == 'True':
                     print("Printer status sent", flush=True)
-            case b'\x04':
-                # Send roll paper status "present and adequate"
+                    
+            case b'\x02' | b'\x03' | b'\x04':
+                # Send b'\x12" all-clear for one-byte status requests
                 self.wfile.write(b'\x12') 
                 self.wfile.flush()
                 if self.netprinter_debugmode == 'True':
-                    print("Paper status sent", flush=True)   
+                    print("b'x12' all-clear sent", flush=True)   
+            
+            case b'\x07' | b'\x08':
+                #Send all-clear for 2-byte status requests
+                
+                #First, get the second byte
+                request = request + self.rfile.read(1)
+                
+                # Send the all-clear
+                self.wfile.write(b'\x12') 
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Ink or peeler all-clear sent", flush=True)
+                    
+            case b'\x18':
+                # Send normal interface status
+                
+                #First, get the second byte
+                request = request + self.rfile.read(1)
+                
+                # Send the normal status
+                self.wfile.write(b'\x10') 
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Paper status sent", flush=True)
+            
             case _:
-                #2 byte ops are not relevant for this project, so we ignore them after consuming the second byte -> NOTE: this could block the print.
-                request = request + self.rfile.read(1)  #NOTE: this will block if there are no more bytes in the stream.
+                #Some other status has been requested, or we are lost in the byte stream.  Ignore the problem and hope for the best.
+                pass
+
         return request
             
     def process_gs_parens_H(self) -> bytes:
