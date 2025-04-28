@@ -644,7 +644,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
             case b'\x03' | b'\x33': # 3 or 51
                 #Transmit some version ID byte
-                self.wfile.write(b'\x01') #TODO: choose a version ID
+                self.wfile.write(b'\x23') #TODO: put the version ID somewhere central to facilitate releases
                 self.wfile.flush()
                 if self.netprinter_debugmode == 'True':
                     print("Printer version ID byte sent", flush=True)   
@@ -655,13 +655,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 first_byte = b'\x02' # No multi-byte chars, autocutter installed, no DM-D
                 second_byte = b'\x40' #Fixed
                 third_byte = b'\x40'  #No peeler.
-                send_gs_i_printer_info_A(next_in + first_byte + second_byte + third_byte)
+                send_gs_i_printer_info_A(first_byte + second_byte + third_byte)
                 if self.netprinter_debugmode == 'True':
                     print("Printer supported functions sent", flush=True)                 
 
             case b'\x41': # 65
                 #Transmit printer firmware version
-                send_gs_i_printer_info_B(b'netprinter_1')  #TODO: choose a version number
+                send_gs_i_printer_info_B(b'release 2.3')  #TODO: put the version number somewhere central to facilitate releases
                 if self.netprinter_debugmode == 'True':
                     print("Printer firmware version sent", flush=True) 
 
@@ -673,17 +673,28 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
           
             case b'\x44': # 68
                 #Transmit printer serial number
-                send_gs_i_printer_info_B(b'netprinter_1')
+                send_gs_i_printer_info_B(b'netprinter_1') #TODO: create a serial number for each instance (??)
                 if self.netprinter_debugmode == 'True':
                     print("Printer serial sent", flush=True) 
 
             case b'\x45': # 69
                 #Transmit printer font of language
-                # TODO: we send an empty response but testing is needed
-                send_gs_i_printer_info_B(b'')
+                send_gs_i_printer_info_B(b'PC850 Multilingual')
                 if self.netprinter_debugmode == 'True':
-                    print("Empty language sent", flush=True) 
-
+                    print("Printer language sent", flush=True) 
+                    
+            case b'\x23' | b'\x24' | b'\x60' | b'\x6E' :
+                #These are model-specific requests for Printer information A
+                send_gs_i_printer_info_A(b'\x01\x01\x01') # We can send anything, but the client will wait for Printer Information A before continuing.
+                if self.netprinter_debugmode == 'True':
+                    print("Model-specific Printer Info A sent", flush=True)   
+                    
+            case b'\x6F' | b'\x70 ':
+                #These are model-specific requests for Printer Information B
+                send_gs_i_printer_info_B(b'Netprinter')
+                if self.netprinter_debugmode == 'True':
+                    print("Model-specific Printer Info B sent", flush=True)  
+                
             case _:
                 if self.netprinter_debugmode == 'True':
                     print("Unknown GS i request received: " + next_in, flush=True)
