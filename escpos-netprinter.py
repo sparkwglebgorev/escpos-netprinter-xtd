@@ -689,11 +689,17 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 if self.netprinter_debugmode == 'True':
                     print("Model-specific Printer Info A sent", flush=True)   
                     
-            case b'\x6F' | b'\x70 ':
+            case b'\x6F' :
                 #These are model-specific requests for Printer Information B
                 send_gs_i_printer_info_B(b'Netprinter')
                 if self.netprinter_debugmode == 'True':
                     print("Model-specific Printer Info B sent", flush=True)  
+                    
+            case b'\x70':
+                #These are model-specific requests for Printer Information B
+                send_gs_i_printer_info_B(b'Netprinter')
+                if self.netprinter_debugmode == 'True':
+                    print("Model-specific Printer Info B sent", flush=True)
                 
             case _:
                 if self.netprinter_debugmode == 'True':
@@ -764,227 +770,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         match request:
             case b'\x45': #E
                 #Set user setup command
-                pL:bytes = self.rfile.read(1) # Get pL byte 
-                pH:bytes = self.rfile.read(1) # Get pH byte
-                fn:bytes = self.rfile.read(1) # Get fn byte
-                request = request + pL + pH + fn # Send these bytes forward in all cases
-                match fn:
-                    case b'\x01':
-                        # Respond to user setting mode start request
-                        request = request + self.rfile.read(2) #read d1 and d2
-                        self.wfile.write(b'\x37\x20\x00')  # Respond OK
-                        self.wfile.flush()
-                        if self.netprinter_debugmode == 'True':
-                            print("Mode change notice sent", flush=True)
-
-                    case b'\x04':
-                        # Respond with settings of the memory switches
-                        a:bytes = self.rfile.read(1)  #read a
-                        request = request + a
-                        match a:
-                            case b'\x01':
-                                # Respond with: Power-on notice disabled, Receive buffer large, busy when buffer full, 
-                                #               receive error ignored, auto line-feed disabled, DM-D not connected,
-                                #               RS-232 pins 6 and 25 not used.
-                                response:bytes = b'\x30\x30\x31\x31\x30\x30\x30\x30'
-                                self.wfile.write(b'\x37\x21' + response + b'\x00') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Msw1 switches sent", flush=True)
-                            case b'\x02':
-                                # Respond with: Autocutter enabled and chinese character code GB2312.
-                                response:bytes = b'\x31\x31\x31\x30\x30\x30\x30\x30'
-                                self.wfile.write(b'\x37\x21' + response + b'\x00') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Msw2 switches sent", flush=True)
-                            case _:
-                                if self.netprinter_debugmode == 'True':
-                                    print("Unknown switch set requested" + request, flush=True)
-
-                    case b'\x06': #6
-                        # Transmit the customized setting values
-                        a:bytes = self.rfile.read(1)  #read a
-                        request = request + a
-                        
-                        response:bytes = b''
-                        match a:
-                            case 1:
-                                #NV Memory capacity
-                                response = b'128'
-
-                            case 2:
-                                #NV graphics capacity
-                                response = b'256'
-                                
-                            case 3:
-                                #Paper width
-                                response = b'80'
-                                
-                            case 5:
-                                #Print density
-                                response = b'72'
-                            
-                            case 6:
-                                #Print speed
-                                response = b'20'
-                                
-                            case 7:
-                                #Thai print char mode
-                                response = b'1'
-                            
-                            case 8:
-                                #Code page
-                                response = b'2' #PC850 Multilingual
-                            
-                            case 9:
-                                # Default international character
-                                response = b'\xB0' #wavy character
-                                
-                            case 10:
-                                #Selection of the interface(???)
-                                response = b'1'
-                            
-                            case 11:
-                                #Column emulation mode (???)
-                                response = b'1'
-                                
-                            case 12:
-                                #Command execution (offline)(???)
-                                response = b'0'
-                            
-                            case 13:
-                                # Specification for the top margin
-                                response = b'22'
-                                
-                            case 14:
-                                #Selection of paper removal standby
-                                response = b'0'
-                                
-                            case 20:
-                                #Switchover time 
-                                response = b'1'
-                            
-                            case 21:
-                                #Selection of primary connection interface (???)
-                                response = b'1'
-                            
-                            case 22:
-                                response = b'1'    
-                            
-                            case 70|71|73:
-                                # Graphics expansion and reduction ratios
-                                response = b'1'
-                            
-                            case 97:
-                                response = b'1'
-                            
-                            case 98:
-                                #PSU output
-                                response = b'112'
-                                
-                            case 100:
-                                response = b'2'
-                                
-                            case 101:
-                                #ARP: top margin
-                                response = b'1'
-                               
-                            case 102:
-                                #ARP: bottom margin
-                                response = b'1'
-                                    
-                            case 103:
-                                #ARP: line spacing
-                                response = b'1'
-                                
-                            case 104:
-                                #ARP: extra line feed spacing
-                                response = b'1'
-                                
-                            case 105:
-                                #ARP: barcode height
-                                response = b'1'
-                                
-                            case 107:
-                                #ARP: character height
-                                response = b'1'
-                                                            
-                            case 111|112|113:
-                                #Automatic replacement of fonts A,B,C
-                                response = b'1'
-                           
-                            case _:
-                                if self.netprinter_debugmode == 'True':
-                                    print("Unknown customized setting requested: " + a, flush=True)   
-                        
-                        if a in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
-                            self.send_response_customized_settings(a, response)
-                            if self.netprinter_debugmode == 'True':
-                                print("Customized setting {a} sent", flush=True)
-                        
-
-                    case b'\x0C': # 12
-                        """ NOTE: this one is for serial flow control.  Probably never happens over Ethernet"""
-                        if self.netprinter_debugmode == 'True':
-                                print("Serial flow control command received: " + request, flush=True)
-
-                    case b'\x0E':  #14
-                        """NOTE: this one is for Bluetooth interface config.  Probably never happens over Ethernet"""
-                        if self.netprinter_debugmode == 'True':
-                                print("Bluetooth interface config command received: " + request, flush=True)
-
-                    case b'\x10':  #16
-                        """NOTE: this one is for USB interface config.  Probably never happens over Ethernet"""
-                        if self.netprinter_debugmode == 'True':
-                            print("USB interface config command received: " + request, flush=True)
-
-                    case b'\x32':  #50
-                        # Transmit the paper layout information
-                        n:bytes = self.rfile.read(1)  #read n
-                        request = request + n
-                        match n:
-                            case b'\x40' | b'\x50':  #64 (set) or 80(actual)
-                                #Setting values - only useful for labels so not used
-                                separator = b'\x1F'
-                                sa = b'48' #Paper layout is not used
-                                sb = b'' #Value omitted
-                                sc = b'' #Value omitted
-                                sd = b'' #Value omitted
-                                se = b'' #Value omitted
-                                se = b'' #Value omitted
-                                response:bytes = sa +separator+ sb +separator+ sc +separator+ sd +separator+ se
-                                self.wfile.write(b'\x37\x39' + n + b'\x1F' + response + b'\x00') 
-                                self.wfile.flush()
-                                if self.netprinter_debugmode == 'True':
-                                    print("Paper layout sent", flush=True)
-                            case _:
-                                if self.netprinter_debugmode == 'True':
-                                    print("Unknown paper layout info request: " + request, flush=True)
-
-                    case b'\x64':  #100:
-                        #Transmit internal buzzer patterns
-                        a:bytes = self.rfile.read(1)  #read a, the desired pattern
-                        request = request + a
-
-                        # Extracted from the Epson docs:
-                        # [n m1 t1 m2 t2 m3 t3 m4 t4 m5 t5 m6 t6] (13 bytes) is processed as one sound pattern. 
-                        # When the setting of "Duration time" is (t = 0), it is 1-byte data of "0" [Hex = 30h / Decimal = 48].
-                        # When the setting of "Duration time" is (t = 100), it is 3-byte data of "100" [Hex = 31h, 30h, 30h / Decimal = 49, 48, 48].
-                        # NOTE: there is no mention in the spec for the m fields, so I will assume it's the same as t:  char-to-hex.
-
-                        # Our pattern will be "silence for 0 seconds, 6 times"
-                        pattern = b'000000000000' 
-                        self.wfile.write(a + pattern + b'\x00')  #The data has to be sent "Header to NUL" with a as a header.
-                        self.wfile.flush()
-                        if self.netprinter_debugmode == 'True':
-                            print("Buzzer pattern sent", flush=True)
-
-                    case _:
-                        #Any other functions that do not transmit data back - we consume the parameter bytes.
-                        if self.netprinter_debugmode == 'True':
-                            print("No-response-needed GS ( E command received: " + request, flush=True)
-                        request = request + self.consume_parameter_data(pL, pH)
+                request = request + self.process_gs_parens_E()
                
             case b'\x48': #H
                 #Transmission + response or status (not for OPOS or Java POS, and very mysterious and printer-dependant)
@@ -994,6 +780,230 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 if self.netprinter_debugmode == 'True':
                     print("Non-status GS ( request received: " + request, flush=True)
         
+        return request
+
+    def process_gs_parens_E(self) -> bytes:
+        pL:bytes = self.rfile.read(1) # Get pL byte 
+        pH:bytes = self.rfile.read(1) # Get pH byte
+        fn:bytes = self.rfile.read(1) # Get fn byte
+        request:bytes = pL + pH + fn # Send these bytes forward in all cases
+        match fn:
+            case b'\x01':
+                        # Respond to user setting mode start request
+                request = request + self.rfile.read(2) #read d1 and d2
+                self.wfile.write(b'\x37\x20\x00')  # Respond OK
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Mode change notice sent", flush=True)
+
+            case b'\x04':
+                        # Respond with settings of the memory switches
+                a:bytes = self.rfile.read(1)  #read a
+                request = request + a
+                match a:
+                    case b'\x01':
+                                # Respond with: Power-on notice disabled, Receive buffer large, busy when buffer full, 
+                                #               receive error ignored, auto line-feed disabled, DM-D not connected,
+                                #               RS-232 pins 6 and 25 not used.
+                        response:bytes = b'\x30\x30\x31\x31\x30\x30\x30\x30'
+                        self.wfile.write(b'\x37\x21' + response + b'\x00') 
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("Msw1 switches sent", flush=True)
+                    case b'\x02':
+                                # Respond with: Autocutter enabled and chinese character code GB2312.
+                        response:bytes = b'\x31\x31\x31\x30\x30\x30\x30\x30'
+                        self.wfile.write(b'\x37\x21' + response + b'\x00') 
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("Msw2 switches sent", flush=True)
+                    case _:
+                        if self.netprinter_debugmode == 'True':
+                            print("Unknown switch set requested" + request, flush=True)
+
+            case b'\x06': #6
+                        # Transmit the customized setting values
+                a:bytes = self.rfile.read(1)  #read a
+                request = request + a
+                        
+                response:bytes = b''
+                match a:
+                    case 1:
+                                #NV Memory capacity
+                        response = b'128'
+
+                    case 2:
+                                #NV graphics capacity
+                        response = b'256'
+                                
+                    case 3:
+                                #Paper width
+                        response = b'80'
+                                
+                    case 5:
+                                #Print density
+                        response = b'72'
+                            
+                    case 6:
+                                #Print speed
+                        response = b'20'
+                                
+                    case 7:
+                                #Thai print char mode
+                        response = b'1'
+                            
+                    case 8:
+                                #Code page
+                        response = b'2' #PC850 Multilingual
+                            
+                    case 9:
+                                # Default international character
+                        response = b'\xB0' #wavy character
+                                
+                    case 10:
+                                #Selection of the interface(???)
+                        response = b'1'
+                            
+                    case 11:
+                                #Column emulation mode (???)
+                        response = b'1'
+                                
+                    case 12:
+                                #Command execution (offline)(???)
+                        response = b'0'
+                            
+                    case 13:
+                                # Specification for the top margin
+                        response = b'22'
+                                
+                    case 14:
+                                #Selection of paper removal standby
+                        response = b'0'
+                                
+                    case 20:
+                                #Switchover time 
+                        response = b'1'
+                            
+                    case 21:
+                                #Selection of primary connection interface (???)
+                        response = b'1'
+                            
+                    case 22:
+                        response = b'1'    
+                            
+                    case 70|71|73:
+                                # Graphics expansion and reduction ratios
+                        response = b'1'
+                            
+                    case 97:
+                        response = b'1'
+                            
+                    case 98:
+                                #PSU output
+                        response = b'112'
+                                
+                    case 100:
+                        response = b'2'
+                                
+                    case 101:
+                                #ARP: top margin
+                        response = b'1'
+                               
+                    case 102:
+                                #ARP: bottom margin
+                        response = b'1'
+                                    
+                    case 103:
+                                #ARP: line spacing
+                        response = b'1'
+                                
+                    case 104:
+                                #ARP: extra line feed spacing
+                        response = b'1'
+                                
+                    case 105:
+                                #ARP: barcode height
+                        response = b'1'
+                                
+                    case 107:
+                                #ARP: character height
+                        response = b'1'
+                                                            
+                    case 111|112|113:
+                                #Automatic replacement of fonts A,B,C
+                        response = b'1'
+                           
+                    case _:
+                        if self.netprinter_debugmode == 'True':
+                            print("Unknown customized setting requested: " + a, flush=True)   
+                        
+                if a in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
+                    self.send_response_customized_settings(a, response)
+                    if self.netprinter_debugmode == 'True':
+                        print("Customized setting {a} sent", flush=True)
+                        
+
+            case b'\x0C': # 12
+                """ NOTE: this one is for serial flow control.  Probably never happens over Ethernet"""
+                if self.netprinter_debugmode == 'True':
+                        print("Serial flow control command received: " + request, flush=True)
+
+            case b'\x0E':  #14
+                """NOTE: this one is for Bluetooth interface config.  Probably never happens over Ethernet"""
+                if self.netprinter_debugmode == 'True':
+                        print("Bluetooth interface config command received: " + request, flush=True)
+
+            case b'\x10':  #16
+                """NOTE: this one is for USB interface config.  Probably never happens over Ethernet"""
+                if self.netprinter_debugmode == 'True':
+                    print("USB interface config command received: " + request, flush=True)
+
+            case b'\x32':  #50
+                        # Transmit the paper layout information
+                n:bytes = self.rfile.read(1)  #read n
+                request = request + n
+                match n:
+                    case b'\x40' | b'\x50':  #64 (set) or 80(actual)
+                                #Setting values - only useful for labels so not used
+                        separator = b'\x1F'
+                        sa = b'48' #Paper layout is not used
+                        sb = b'' #Value omitted
+                        sc = b'' #Value omitted
+                        sd = b'' #Value omitted
+                        se = b'' #Value omitted
+                        se = b'' #Value omitted
+                        response:bytes = sa +separator+ sb +separator+ sc +separator+ sd +separator+ se
+                        self.wfile.write(b'\x37\x39' + n + b'\x1F' + response + b'\x00') 
+                        self.wfile.flush()
+                        if self.netprinter_debugmode == 'True':
+                            print("Paper layout sent", flush=True)
+                    case _:
+                        if self.netprinter_debugmode == 'True':
+                            print("Unknown paper layout info request: " + request, flush=True)
+
+            case b'\x64':  #100:
+                        #Transmit internal buzzer patterns
+                a:bytes = self.rfile.read(1)  #read a, the desired pattern
+                request = request + a
+
+                        # Extracted from the Epson docs:
+                        # [n m1 t1 m2 t2 m3 t3 m4 t4 m5 t5 m6 t6] (13 bytes) is processed as one sound pattern. 
+                        # When the setting of "Duration time" is (t = 0), it is 1-byte data of "0" [Hex = 30h / Decimal = 48].
+                        # When the setting of "Duration time" is (t = 100), it is 3-byte data of "100" [Hex = 31h, 30h, 30h / Decimal = 49, 48, 48].
+                        # NOTE: there is no mention in the spec for the m fields, so I will assume it's the same as t:  char-to-hex.
+
+                        # Our pattern will be "silence for 0 seconds, 6 times"
+                pattern = b'000000000000' 
+                self.wfile.write(a + pattern + b'\x00')  #The data has to be sent "Header to NUL" with a as a header.
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print("Buzzer pattern sent", flush=True)
+
+            case _:
+                        #Any other functions that do not transmit data back - we consume the parameter bytes.
+                if self.netprinter_debugmode == 'True':
+                    print("No-response-needed GS ( E command received: " + str(request), flush=True)
+                request = request + self.consume_parameter_data(pL, pH)
         return request
 
     def send_response_customized_settings(self, a:bytes, response:bytes) -> None:

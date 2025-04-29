@@ -10,7 +10,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal", 
+            "console": "integratedTerminal"
         },
         {
             "name": "Full netprinter",
@@ -36,6 +36,17 @@
                 "--no-debugger",
                 "--no-reload"
             ],
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
+            "name": "Jetdirect debugging",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/escpos-netprinter.py",
+            "env": {
+                "ESCPOS_DEBUG": "True"
+            },
             "jinja": true,
             "justMyCode": true
         }

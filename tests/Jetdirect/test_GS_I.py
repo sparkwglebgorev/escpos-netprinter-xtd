@@ -105,21 +105,24 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(b'\x1D\x49\x45')
     data = receive_to_null(s)
     assert data == (b'\x5F' + b'PC850 Multilingual' + b'\x00'), f"Printer returned unexpected code page <n=69> :{data}"    
-    print("Test finished without exceptions")
     
     # Send GS I <n=111> Transmits model specific information (Printer info B)
     s.sendall(b'\x1D\x49\x6F')
     data = receive_to_null(s)
     assert data == (b'\x5F' + b'Netprinter' + b'\x00'), f"Printer returned unexpected printer info B <n=111> :{data}"    
-    print("Test finished without exceptions")
 
     # Send GS I <n=112> Transmits model specific information (Printer info B)
     s.sendall(b'\x1D\x49\x70')
     data = receive_to_null(s)
     assert data == (b'\x5F' + b'Netprinter' + b'\x00'), f"Printer returned unexpected printer info B <n=112> :{data}"    
-    print("Test finished without exceptions")
+
+    
+    #Send a printable string for this receipt.
+    s.sendall(b'Test status GS I - complete.\n')
     
     s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
     data = s.recv(1024)
+    print("Test finished without exceptions")
+    
 
 print(f"Received {data!r}")

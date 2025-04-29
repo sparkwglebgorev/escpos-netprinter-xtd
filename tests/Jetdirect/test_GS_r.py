@@ -49,9 +49,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     data = s.recv(1)
     assert data == b'\x00', "Printer returned non-clear ink status <n=52>"
     
-    print("Test finished without exceptions")
-
+    #Send a printable string for this receipt.
+    s.sendall(b'Test status GS r - complete.\n')
+    
     s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
     data = s.recv(1024)
+    print("Test finished without exceptions")
 
 print(f"Received {data!r}")
