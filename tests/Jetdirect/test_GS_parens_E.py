@@ -73,10 +73,29 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     avaliable_read, _, _ = select.select([s], [], [], 1)
     assert len(avaliable_read) == 0, f"Printer returned unexpected data to GS ( E <fn=3>: {avaliable_read[0].recv(1)}"
 
+    # Send GS ( E <fn=4> <a=1> read msw1 switches
+    send_gs_parens_e_function(s, b'\x02', b'\x00', 4, b'\x01')
+    data = receive_to_null(s)
+    assert data == (b'\x37\x21'+ b'\x30\x30\x31\x31\x30\x30\x30\x30' +b'\x00'), f"Printer returned unexpected msw1 state : {data}"
+    
+    # Send GS ( E <fn=4> <a=2> read msw2 switches
+    send_gs_parens_e_function(s, b'\x02', b'\x00', 4, b'\x02')
+    data = receive_to_null(s)
+    assert data == (b'\x37\x21'+ b'\x31\x31\x31\x30\x30\x30\x30\x30' +b'\x00'), f"Printer returned unexpected msw2 state : {data}"
+
+
+    # Send GS ( E <fn=5> set customized setting values
+    send_gs_parens_e_function(s, b'\x04', b'\x00', 5, b'\x03\x06\00')
+    #Check that nothing has been returned
+    avaliable_read, _, _ = select.select([s], [], [], 1)
+    assert len(avaliable_read) == 0, f"Printer returned unexpected data to GS ( E <fn=5>: {avaliable_read[0].recv(1)}"
+    
+    
     #TODO:  test all other functions
         
     #Send a printable string for this receipt.
     s.sendall(b'Test status GS ( E - complete.\n')
+    #BUG:  check why this text does not appear in the receipts.   When executing esc2thml.php from the command line, it is there in the output.
 
     s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
     data = s.recv(1024)
