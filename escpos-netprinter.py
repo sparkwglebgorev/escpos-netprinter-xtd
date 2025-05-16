@@ -756,7 +756,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     print("Ink status sent", flush=True)
             case _:
                 if self.netprinter_debugmode == 'True':
-                    print("Unknown GS r request received: " + request, flush=True)
+                    print(f"Unknown GS r request received: {request}", flush=True)
         return request
     
     def respond_gs_parens(self) -> bytes:
@@ -778,7 +778,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
             case _:
                 if self.netprinter_debugmode == 'True':
-                    print("Non-status GS ( request received: " + request, flush=True)
+                    print(f"Non-status GS ( request received: {request}", flush=True)
         
         return request
 
@@ -787,6 +787,9 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         pH:bytes = self.rfile.read(1) # Get pH byte
         fn:bytes = self.rfile.read(1) # Get fn byte
         request:bytes = pL + pH + fn # Send these bytes forward in all cases
+        
+        print(f"GS ( e <fn={int.from_bytes(fn)}>")  # TODO: For debugging purposes, remove later
+        
         match fn:
             case b'\x01':
                         # Respond to user setting mode start request
@@ -819,7 +822,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                             print("Msw2 switches sent", flush=True)
                     case _:
                         if self.netprinter_debugmode == 'True':
-                            print("Unknown switch set requested" + request, flush=True)
+                            print(f"Unknown switch set requested: {request}", flush=True)
 
             case b'\x06': #6
                         # Transmit the customized setting values
@@ -827,7 +830,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 request = request + a
                         
                 response:bytes = b''
-                match a:
+                match int.from_bytes(a):
                     case 1:
                                 #NV Memory capacity
                         response = b'128'
@@ -925,62 +928,127 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                 #ARP: barcode height
                         response = b'1'
                                 
-                    case 107:
+                    case 106:
                                 #ARP: character height
                         response = b'1'
                                                             
                     case 111|112|113:
                                 #Automatic replacement of fonts A,B,C
                         response = b'1'
-                           
+                      
+                    case num if num in range(116, 196):
+                        # Model-specific values.
+                        #We have to send something back, anything.
+                        self.send_response_customized_settings(a, b'303')
+                        
+                        if self.netprinter_debugmode == 'True':
+                            print(f"Model-specific customized setting requested: {a}", flush=True) 
+                        
+                        
                     case _:
                         if self.netprinter_debugmode == 'True':
                             print("Unknown customized setting requested: " + a, flush=True)   
                         
-                if a in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
+                if int.from_bytes(a) in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
                     self.send_response_customized_settings(a, response)
                     if self.netprinter_debugmode == 'True':
-                        print("Customized setting {a} sent", flush=True)
+                        print(f"Customized setting {a} sent", flush=True)
                         
+            case b'\x0B': # 11
+                """ NOTE: this one is for serial interface config.  Probably never happens over Ethernet"""
+                if self.netprinter_debugmode == 'True':
+                        print(f"Serial interface config command received: {request}", flush=True)
 
             case b'\x0C': # 12
-                """ NOTE: this one is for serial flow control.  Probably never happens over Ethernet"""
+                """ NOTE: Transmit the configuration item for the serial interface.  Probably never happens over Ethernet"""
+              
+                #We need to send back two things "Header to NULL"
+                # the received command (a), and the value.
+                a:bytes = self.rfile.read(1)
+                request = request + a
+                
+                le_a:bytes = int.to_bytes(ord(f'{int.from_bytes(a)}'))
+                
+                value:bytes = b'19200' # up to 5 bytes, all numbers.
+                
+                response:bytes = b'\x37\x33' + le_a + b'\x1f'+ value + b'\x00'
+                self.wfile.write(response)
+                self.wfile.flush()
+                
                 if self.netprinter_debugmode == 'True':
-                        print("Serial flow control command received: " + request, flush=True)
+                        print(f"Serial flow control command received: {request}", flush=True)
+                
 
             case b'\x0E':  #14
                 """NOTE: this one is for Bluetooth interface config.  Probably never happens over Ethernet"""
+                
+                #We need to send back two things "Header to NULL"
+                # the received command (a), and the value.
+                a:bytes = self.rfile.read(1)
+                request = request + a
+                
+                value:bytes = b'19200' # up to 16 bytes, all numbers.
+                
+                response:bytes = b'\x37\x4a' + a + value + b'\x00'
+                self.wfile.write(response)
+                self.wfile.flush()
+                
+                
                 if self.netprinter_debugmode == 'True':
-                        print("Bluetooth interface config command received: " + request, flush=True)
+                        print(f"Bluetooth interface config command received: {request}", flush=True)
 
             case b'\x10':  #16
                 """NOTE: this one is for USB interface config.  Probably never happens over Ethernet"""
+                
+                # Read the received command (a)
+                a:bytes = self.rfile.read(1)
+                request = request + a
+                
+                #We send back a few bytes -> this should be an IEEE1284-compliant device ID (up to 1024 chars) or Class
+                self.wfile.write(b'ESCPOS-netprinter')
+                self.wfile.flush()
+                
                 if self.netprinter_debugmode == 'True':
-                    print("USB interface config command received: " + request, flush=True)
+                    print(f"USB interface config command received: {request}", flush=True)
 
             case b'\x32':  #50
-                        # Transmit the paper layout information
+                # Transmit the paper layout information
                 n:bytes = self.rfile.read(1)  #read n
                 request = request + n
                 match n:
                     case b'\x40' | b'\x50':  #64 (set) or 80(actual)
                                 #Setting values - only useful for labels so not used
+                        le_n:bytes = str.encode(f'{int.from_bytes(n)}')
                         separator = b'\x1F'
                         sa = b'48' #Paper layout is not used
                         sb = b'' #Value omitted
                         sc = b'' #Value omitted
                         sd = b'' #Value omitted
                         se = b'' #Value omitted
-                        se = b'' #Value omitted
-                        response:bytes = sa +separator+ sb +separator+ sc +separator+ sd +separator+ se
-                        self.wfile.write(b'\x37\x39' + n + b'\x1F' + response + b'\x00') 
+                        sf = b'' #Value omitted
+                        sg = b'' #Value omitted
+                        sh = b'' #Value omitted
+                        response:bytes = sa +separator+ sb +separator+ sc +separator+ sd +separator+ se +separator+ sf +separator+ sg +separator+ sh +separator
+                        self.wfile.write(b'\x37\x39' + le_n + separator + response + b'\x00') 
                         self.wfile.flush()
                         if self.netprinter_debugmode == 'True':
                             print("Paper layout sent", flush=True)
                     case _:
                         if self.netprinter_debugmode == 'True':
-                            print("Unknown paper layout info request: " + request, flush=True)
+                            print(f"Unknown paper layout info received: {request}", flush=True)
 
+            case b'\x34': #52
+                #Transmit the control settings for label paper
+                #Not interested, so we send CAN after the first Media string block
+                #get the block
+                request = request + self.consume_parameter_data(pL, pH)
+                #send CAN (24 in decimal)
+                self.wfile.write(b'\x18') 
+                self.wfile.flush()
+                if self.netprinter_debugmode == 'True':
+                    print(f"Label printer control settings received: {request}", flush=True)
+                
+            
             case b'\x64':  #100:
                         #Transmit internal buzzer patterns
                 a:bytes = self.rfile.read(1)  #read a, the desired pattern
@@ -1013,7 +1081,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             a (bytes): the request type
             response (bytes): the response number
         """        
-        self.wfile.write(b'\x37\x27' + int.from_bytes(a) + b'\x1F' + response + b'\x00') 
+        self.wfile.write(b'\x37\x27' + a + b'\x1F' + response + b'\x00') 
         self.wfile.flush()
 
 
@@ -1100,12 +1168,14 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
     def consume_parameter_data(self, pL:bytes, pH:bytes) -> bytes:
         """Consume parameter data without processing for a length specified by pL and pH
 
+        WARNING:  if there are less than the expected number of bytes, the return will be shorter than expected.
+
         Args:
             pL (bytes): Low byte of the size 
             pH (bytes): High byte of the size
 
         Returns:
-            bytes: _description_
+            bytes: The received bytes.
         """        
         num_bytes = self.calculate_param_size(pL, pH)
         
