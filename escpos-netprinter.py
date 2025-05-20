@@ -954,10 +954,6 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     if self.netprinter_debugmode == 'True':
                         print(f"Customized setting {a} sent", flush=True)
                         
-            case b'\x0B': # 11
-                """ NOTE: this one is for serial interface config.  Probably never happens over Ethernet"""
-                if self.netprinter_debugmode == 'True':
-                        print(f"Serial interface config command received: {request}", flush=True)
 
             case b'\x0C': # 12
                 """ NOTE: Transmit the configuration item for the serial interface.  Probably never happens over Ethernet"""
