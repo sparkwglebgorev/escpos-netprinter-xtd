@@ -257,14 +257,15 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     if self.netprinter_debugmode == True:
                                         print(f"Almost-status bytes: {indata_statuscheck}", flush=True)
 
-                        case b'\1B' :  # ESC
+                        case b'\x1B' :  # ESC
                             #This is potentially a status request.
                             indata_statuscheck = indata_statuscheck + self.rfile.read(1) #Get the second command byte
 
                             match indata_statuscheck:
                                 case b'\x1B\x76':
                                     # Respond to ESC v request
-                                    self.wfile.write(b'\x00') #Send the all-clear
+                                    self.wfile.write(b'\x00')  #Respond roll paper present and adequate
+                                    self.wfile.flush()
                                     if self.netprinter_debugmode == True:
                                         print(f"ESC v received containing {len(indata_statuscheck)} bytes", flush=True)
                                 
@@ -273,6 +274,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     #Read the n byte
                                     n:bytes = self.rfile.read(1)
                                     self.wfile.write(b'\x00')  #Respond drawer kick-out LOW
+                                    self.wfile.flush()
                                     indata_statuscheck = indata_statuscheck + n
                                     if self.netprinter_debugmode == True:
                                         print(f"ESC u received containing {len(indata_statuscheck)} bytes", flush=True)
@@ -387,7 +389,10 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                         print("\n-----end of data-----", flush=True)
                 else: 
                     print("No data received!", flush=True)
-                
+            
+            except Exception as err:
+                print(f"Unexpected {err=}, {type(err)=}")
+                raise    
                     
             else:
                 #Quand on a reçu le signal de fin de transmission
@@ -413,7 +418,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         self.wfile.flush()
         self.connection.close()
 
-        print ("Data received, signature sent.", flush=True)
+        print ("Data reception finished, signature sent.", flush=True)
 
     def consume_bmp_file(self) -> bytes:
         """ Consume a BMP file for the GS D command
@@ -787,9 +792,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         pH:bytes = self.rfile.read(1) # Get pH byte
         fn:bytes = self.rfile.read(1) # Get fn byte
         request:bytes = pL + pH + fn # Send these bytes forward in all cases
-        
-        print(f"GS ( e <fn={int.from_bytes(fn)}>")  # TODO: For debugging purposes, remove later
-        
+       
         match fn:
             case b'\x01':
                         # Respond to user setting mode start request
@@ -939,7 +942,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                     case num if num in range(116, 196):
                         # Model-specific values.
                         #We have to send something back, anything.
-                        self.send_response_customized_settings(a, b'303')
+                        self.send_response_gs_parens_E_fn6(a, b'303')
                         
                         if self.netprinter_debugmode == 'True':
                             print(f"Model-specific customized setting requested: {a}", flush=True) 
@@ -950,7 +953,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                             print("Unknown customized setting requested: " + a, flush=True)   
                         
                 if int.from_bytes(a) in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
-                    self.send_response_customized_settings(a, response)
+                    self.send_response_gs_parens_E_fn6(a, response)
                     if self.netprinter_debugmode == 'True':
                         print(f"Customized setting {a} sent", flush=True)
                         
@@ -1070,8 +1073,8 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 request = request + self.consume_parameter_data(pL, pH)
         return request
 
-    def send_response_customized_settings(self, a:bytes, response:bytes) -> None:
-        """Helper to respond to a customized settings request
+    def send_response_gs_parens_E_fn6(self, a:bytes, response:bytes) -> None:
+        """Helper to respond to a customized settings request ( GS ( E <fn=6> )
 
         Args:
             a (bytes): the request type
@@ -1156,8 +1159,22 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 
         request:bytes = pL + pH + fn + self.consume_parameter_data(pL, pH)
         
-        self.wfile.write(b'\x37\x23\x00') #Send the response to the client
+        identifier:bytes = b''
+        if fn==b'\x30': 
+            identifier = b'\x22'
+            
+        elif fn==b'\x31': 
+            identifier = b'\x23'
+        else:
+            if self.netprinter_debugmode == 'True':
+                print(f"Unknown GS ( H function received: {fn}", flush=True) 
+        
+        self.wfile.write(b'\x37'+ identifier + b'1234' + b'\x00') #Send the response to the client
+        self.wfile.flush()
        
+        if self.netprinter_debugmode == 'True':
+            print("Transmission of response or status done.", flush=True)
+            
         return request
 
 
