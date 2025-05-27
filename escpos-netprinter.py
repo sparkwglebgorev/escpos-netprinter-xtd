@@ -331,18 +331,18 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                         case b'\x31':
                                             # FS g 1 - write to NV memory
                                             # FS g 1 has m then 4 a bytes then nl, ng then (nL + nH × 256) data bytes
-                                            next_byte = next_byte + self.rfile.read(4) #munch on unused bytes
+                                            next_byte = next_byte + self.rfile.read(5) #munch on unused bytes: m a1 a2 a3 a4
                                             # then read pL and pH
-                                            pL:bytes = self.rfile.read(1)
-                                            pH:bytes = self.rfile.read(1)
+                                            nL:bytes = self.rfile.read(1)
+                                            nH:bytes = self.rfile.read(1)
                                             
                                             #send all that data forward
-                                            next_byte = next_byte + pL + pH + self.consume_parameter_data(pL, pH)
+                                            next_byte = next_byte + nL + nH + self.consume_parameter_data(nL, nH)
                                             
                                         case b'\x32':
                                             # FS g 2 - read from NV user memory
                                             # FS g 2 has m then 4 a bytes then nl, ng.  Must send back "header to NUL"
-                                            next_byte = next_byte + self.rfile.read(5) #munch on unused bytes
+                                            next_byte = next_byte + self.rfile.read(5) #munch on unused bytes: m a1 a2 a3 a4
                                             # Get the expected number of bytes to send
                                             nL:bytes = self.rfile.read(1)
                                             nH:bytes = self.rfile.read(1)
