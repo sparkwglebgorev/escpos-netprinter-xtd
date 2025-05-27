@@ -141,9 +141,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                 
                                 case b'\x1D\x61':
                                     # GS a - request enable automatic status back
-                                    indata_statuscheck = indata_statuscheck + self.rfile.read(1)
+                                    n:bytes =  self.rfile.read(1)
+                                    indata_statuscheck = indata_statuscheck + n
                                     # We send the ASB once, in case the client checks for it.
-                                    self.send_basic_ASB_OK() 
+                                    if n==b'\x00':
+                                        pass  #The request is disable ASB -> we send nothing back.
+                                    else:
+                                        self.send_basic_ASB_OK() 
                                 
                                 case b'\x1D\x44':
                                     # GS D has 2 functions.
@@ -159,6 +163,9 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             #We are at the start of the BMP here.
                                             indata_statuscheck = indata_statuscheck + self.consume_bmp_file()
                                             
+                                            if self.netprinter_debugmode == True:
+                                                print(f"GS D <fn=63> BMP NV graphics data received" + indata_statuscheck, flush=True)
+                                            
                                         case b'\x53':
                                             # <fn=83> Define Windows BMP download graphics data
                                             # read the bytes before the BMP
@@ -166,6 +173,9 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             
                                             #We are at the start of the BMP here.
                                             indata_statuscheck = indata_statuscheck + self.consume_bmp_file()
+                                            
+                                            if self.netprinter_debugmode == True:
+                                                print(f"GS D <fn=83> BMP download data received" + indata_statuscheck, flush=True)
                                             
                                         case _:
                                             if self.netprinter_debugmode == True:
@@ -336,7 +346,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             # Get the expected number of bytes to send
                                             nL:bytes = self.rfile.read(1)
                                             nH:bytes = self.rfile.read(1)
-                                            nb_bytes = int.from_bytes(nL)  + int.from_bytes(nH) * 256
+                                            nb_bytes = int.from_bytes(nL)  + (int.from_bytes(nH) * 256)
                                             self.wfile.write(b'\x5f') #Send the header
                                             self.wfile.write(b'\x0F' * nb_bytes) #Send "data"
                                             self.wfile.write(b'\x00') #Send NULL
@@ -525,10 +535,16 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
         #Consume and process one FS ( request
         if self.netprinter_debugmode == 'True': 
             print("FS ( request", flush=True)
-        next_in:bytes = self.rfile.read1(1)  #The n is at most 1 byte
+            
+        next_in:bytes = self.rfile.read1(1)  #Get the command's next byte
+        
         match next_in:
             case b'\x65':  # e
-                # Enable/disable Automatic Status Back (ASB) for optional functions (extended status)
+                # FS ( e Enable/disable Automatic Status Back (ASB) for optional functions (extended status)
+                
+                if self.netprinter_debugmode == 'True': 
+                    print("FS ( e request", flush=True)
+                
                 #  First, get the next bytes
                 pL:bytes = self.rfile.read(1) # Get pL byte 
                 pH:bytes = self.rfile.read(1) # Get pH byte
@@ -544,20 +560,152 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                         #Enabling any status (specifying n != 0) starts extended ASB
                         self.send_extended_ASB_OK() 
 
-            case b'\x41'| b'\x43' | b'\x45' | b'\x4C': # A, C or E :  
-                # These are not relevant functions, so we consume those bytes and send them forward.
-                # These all include pl, ph, fn and some bytes.  
+            case b'\x45':  # FS ( E receipt enhancement control
+                
+                if self.netprinter_debugmode == 'True': 
+                    print(f"FS ( E request", flush=True)
                 
                 #  First, get the size and fn bytes
                 pL:bytes = self.rfile.read(1) # Get pL byte 
                 pH:bytes = self.rfile.read(1) # Get pH byte
                 fn:bytes = self.rfile.read(1) # Get fn byte
-
-                next_in = next_in + pL + pH + fn + self.consume_parameter_data(pL, pH) # Send these bytes forward in all cases
-
+                
+                match fn:
+                    case b'\x3d': #fn 61 needs a response
+                        m:bytes = self.rfile.read(1)
+                        c:bytes = self.rfile.read(1)
+                        
+                        next_in = next_in + pL + pH + fn + m + c
+                        
+                        match c:
+                            case b'\x30':  #48
+                                # Send back top logo info:  m kc1 kc2 a n
+                                self.wfile.write(b'\x02\x32\x32\x49\x04')
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("FS ( E <fn=61> top logo codes sent", flush=True) 
+                                    
+                            case b'\x31':  #49
+                                # Send back bottom logo info:  m kc1 kc2 a 
+                                self.wfile.write(b'\x02\x32\x32\x49')
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("FS ( E <fn=61> bottom logo codes sent", flush=True) 
+                                    
+                            case b'\x32':  #50
+                                # Send back extended top/bottom logo info:  m [a1 n1] [a2 n2] ... [ak nk]
+                                # if nk = 48 the setting is disabled;  let's do that.
+                                # NOTE: the spec fixes m = 2.  The specification does not specify how to tell the value of k, but there a 5 possible pairs.  Let's do 2 pairs.
+                                self.wfile.write(b'\x02'+ b'\x40\x30' + b'\x41\x30')
+                                self.wfile.flush()
+                                if self.netprinter_debugmode == 'True':
+                                    print("FS ( E <fn=61> extended top/bottom logo codes sent", flush=True) 
+                                    
+                            case _:
+                                if self.netprinter_debugmode == 'True':
+                                    print("Unknown FS ( E <fn=61> request received: " + next_in, flush=True) 
+                       
+                    case _:
+                        #In other cases, no response needed
+                        next_in = next_in + pL + pH + fn + self.consume_parameter_data(pL, pH) # Send these bytes forward in all cases
+                        
+                        if fn in [b'\x3c', b'\x3e', b'\x3f', b'\x40', b'\x41', b'\x43']:
+                            if self.netprinter_debugmode == 'True': 
+                                print(f"No-response-needed FS ( E <fn={fn}> request", flush=True)
+                        else:
+                            if self.netprinter_debugmode == 'True':
+                                print("Unknown FS ( E request received: " + next_in, flush=True) 
+            
+            case  b'\x4C': # FS ( L Select label and black mark control function(s)
+                
+                if self.netprinter_debugmode == 'True': 
+                    print(f"FS ( L request", flush=True)
+                
+                #  First, get the size and fn bytes
+                pL:bytes = self.rfile.read(1) # Get pL byte 
+                pH:bytes = self.rfile.read(1) # Get pH byte
+                fn:bytes = self.rfile.read(1) # Get fn byte   
+                
+                match fn:
+                    case b'\x22': #fn=34 needs a response
+                        # FS ( L <fn=34> Paper layout information transmission
+                        n:bytes = self.rfile.read(1)
+                        next_in = next_in + n
+                        le_n:bytes = str.encode(f'{int.from_bytes(n)}') #Convert n as text
+                        
+                        match n:
+                            case b'\x40':
+                                # n=64 Paper layout setting value (in mm)
+                                #Send the response Header to null with each value expressed as text
+                                self.wfile.write(b'\x37\x4b') 
+                                self.wfile.write(le_n)  
+                                self.wfile.write(b'\x1f')
+                                self.wfile.write(b'0\x1f')  #sm=0 This is a Receipt (no black mark)
+                                self.wfile.write(b'0\x1f')  #sa=0 Does not specify the distance from the print reference to the next print reference 
+                                self.wfile.write(b'\x1f'*4) #sb, sc, sd, se are omitted, not pertinent for sm=0
+                                self.wfile.write(b'800')  #The receipt width is 80mm (the unit is 0.1mm)
+                                self.wfile.write(b'\x00')
+                                self.wfile.flush()  #Send the response back.
+                                if self.netprinter_debugmode == 'True': 
+                                    print(f"FS ( L <fn=34> <n=64> Paper layout settings sent", flush=True)
+                                
+                            
+                            case b'\x50':
+                                #n=80 Paper layout effective value  (in dots)
+                                #Send the response Header to null with each value expressed as text
+                                self.wfile.write(b'\x37\x4b') 
+                                self.wfile.write(le_n)  
+                                self.wfile.write(b'\x1f')
+                                self.wfile.write(b'0\x1f')  #sm=0 This is a Receipt (no black mark)
+                                self.wfile.write(b'0\x1f')  #sa=0 Does not specify the distance from the print reference to the next print reference 
+                                self.wfile.write(b'\x1f'*4) #sb, sc, sd, se are omitted, not pertinent for sm=0
+                                self.wfile.write(b'512')  #The receipt width is 80mm (the unit is dots, we choose 512 dots @ 180 DPI like the EPSON TM-88V)
+                                self.wfile.write(b'\x00')
+                                self.wfile.flush()  #Send the response back.     
+                                
+                                if self.netprinter_debugmode == 'True': 
+                                    print(f"FS ( L <fn=34> <n=80> Paper layout settings sent", flush=True)                           
+                            
+                            case _:
+                                #Unknown n, we send nothing back.
+                                if self.netprinter_debugmode == 'True': 
+                                    print(f"Unknown FS ( L <fn=34> <n={le_n}> Paper layout request received", flush=True)
+                    
+                    case b'\x30':  #fn=48 needs a response
+                        # FS ( L <fn=48> Transmit the positioning information
+                        # The paper layout is "No reference (do not use layout)"
+                        m:bytes = self.rfile.read(1)
+                        next_in = next_in + m
+                        
+                        #Send the response Header to null
+                        self.wfile.write(b'\x37\x38')
+                        self.wfile.write(b'\x40') #Information a:  Bits 0,1,2 are 0 and bit 6 is fixed at 1.
+                        self.wfile.write(b'\x43') #Information b: Bits 0 and 1 are 1 and bit 6 is fixed at 1.
+                        self.wfile.write(b'\x00')
+                        self.wfile.flush()  #Send the response back. 
+                        
+                        if self.netprinter_debugmode == 'True': 
+                            print(f"FS ( L <fn=48>  Paper positioning info sent", flush=True)   
+                    
+                    
+                    case b'\x21' | b'\x41' | b'\x42' | b'\x43' | b'\x43': #fn=33, 65, 66, 67, 80
+                        #No response needed
+                        #WARNING:  the documentation says that <function 80> is hex 43, but it should be 50.  I'll follow the documentation.
+                        next_in = next_in + self.consume_parameter_data(pL, pH) # Send these bytes forward
+                        
+                        if self.netprinter_debugmode == 'True': 
+                            print(f"No-response-needed FS ( E <fn={fn}> request", flush=True)
+                            
+                    case _:  
+                        next_in = next_in + self.consume_parameter_data(pL, pH) # Send these bytes forward
+                        
+                        if self.netprinter_debugmode == 'True':
+                                print(f"Unknown FS ( E request received: {next_in}", flush=True) 
+                    
+                            
             case _:
                 if self.netprinter_debugmode == 'True':
-                    print("Unknown FS ( request received: " + next_in, flush=True)
+                    print(f"Unknown FS ( request received: {next_in}", flush=True)
 
         return next_in
 
@@ -966,7 +1114,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 a:bytes = self.rfile.read(1)
                 request = request + a
                 
-                le_a:bytes = int.to_bytes(ord(f'{int.from_bytes(a)}'))
+                le_a:bytes = int.to_bytes(ord(f'{int.from_bytes(a)}')) 
                 
                 value:bytes = b'19200' # up to 5 bytes, all numbers.
                 
