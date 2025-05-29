@@ -16,6 +16,7 @@ print(f"Request status to: {HOST}:{PORT}")
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, int(PORT)))
+    
     s.sendall(b'\x10\x04\x01')
     data = s.recv(2)
     print(f"Printer status: received {data!r}\n")

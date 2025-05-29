@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# This file tests that the lpd setup is functional.
 shopt -s extglob
 shopt -s nullglob  #Quand un patron ne retourne rien, ignorer la commande.  Pour continuer avec le patron lui-même, mettre "shopt -u nullglob"
 
@@ -7,7 +9,7 @@ lpadmin -p test -v $DEVICE_URI -E
 echo "Allo!"|lp -d test
 
 x=0;
-for FILE in /home/escpos-emu/web/receipts/* ; do
+for FILE in /workspaces/escpos-netprinter/web/receipts/* ; do
     echo "$FILE"
     ((x=x+1))
 done
