@@ -348,7 +348,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             nH:bytes = self.rfile.read(1)
                                             nb_bytes = int.from_bytes(nL)  + (int.from_bytes(nH) * 256)
                                             self.wfile.write(b'\x5f') #Send the header
-                                            self.wfile.write(b'\x0F' * nb_bytes) #Send "data"
+                                            self.wfile.write(b'\x0F' * nb_bytes) #Send the expected amount of "data"
                                             self.wfile.write(b'\x00') #Send NULL
                                             self.wfile.flush()
                                             #send all the received data forward
