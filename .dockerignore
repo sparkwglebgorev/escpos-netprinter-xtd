@@ -28,3 +28,7 @@ web/tmp/**
 .vscode
 __pycache__/**
 __pycache__
+
+# Remove test scripts
+tests/**
+tests
