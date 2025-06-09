@@ -51,7 +51,8 @@ class Printout extends Command
             'e' => 'PrintAndReverseFeedLinesCmd',
             '$' => 'SetAbsolutePrintPosCmd',
             'E' => 'EnableEmphasisCmd',
-            'p' => 'PulseCmd'
+            'p' => 'PulseCmd', 
+            "\x20" => 'CommandOneArg'
         ),
         GS => array(
             '\\' => 'SetRelativeVerticalPrintPositionCmd', // low and high values for vertrical print position (page mode)

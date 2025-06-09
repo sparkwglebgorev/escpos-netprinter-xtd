@@ -19,14 +19,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, int(PORT)))
 
     print("Test start")
-    # Test ESC SP Transmit peripheral device status
-    # n=0
-    s.sendall(b'Hello, printer.  This has no right-side spacing.\n')
-    s.sendall(b'\x1b\x20' + int.to_bytes(128))
-    s.sendall(b'This now has a right-side spacing of 128\n')
+    # Test ESC SP Set right-side character spacing
+    
+    s.sendall(b'Hello, printer. \nThis has no right-side spacing.\n')
+    
+    for n in  range(256):
+        # Test all spacings, just in case
+        s.sendall(b'\x1b\x20' + int.to_bytes(n))
+        s.sendall(bytes(f"This has a right-side spacing of {n} units\n", "utf-8"))
     
     #Send a printable string for this receipt.
-    s.send(b'Test ESC SP complete.\n')
+    s.send(b'\n\nTest ESC SP complete.\n')
     
     s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
     data = s.recv(1024)
