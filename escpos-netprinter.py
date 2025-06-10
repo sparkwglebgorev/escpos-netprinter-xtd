@@ -164,7 +164,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             indata_statuscheck = indata_statuscheck + self.consume_bmp_file()
                                             
                                             if self.netprinter_debugmode == True:
-                                                print(f"GS D <fn=63> BMP NV graphics data received" + indata_statuscheck, flush=True)
+                                                print(f"GS D <fn=63> BMP NV graphics data received: {indata_statuscheck}", flush=True)
                                             
                                         case b'\x53':
                                             # <fn=83> Define Windows BMP download graphics data
@@ -175,11 +175,11 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                             indata_statuscheck = indata_statuscheck + self.consume_bmp_file()
                                             
                                             if self.netprinter_debugmode == True:
-                                                print(f"GS D <fn=83> BMP download data received" + indata_statuscheck, flush=True)
+                                                print(f"GS D <fn=83> BMP download data received: {indata_statuscheck}", flush=True)
                                             
                                         case _:
                                             if self.netprinter_debugmode == True:
-                                                print(f"Unknown GS D command received :" + indata_statuscheck, flush=True)
+                                                print(f"Unknown GS D command received : {indata_statuscheck}", flush=True)
                                                 
                                     if self.netprinter_debugmode == True:
                                         print(f"GS D command received containing {len(indata_statuscheck)} bytes", flush=True)
@@ -379,7 +379,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
                                 case _:
                                     if self.netprinter_debugmode == 'True':
-                                        print("Unknown FS request received: " + indata_statuscheck, flush=True)
+                                        print(f"Unknown FS request received: {indata_statuscheck}", flush=True)
                         case _:
                             #This byte is uninteresting data for this block's purposes, no processing necessary.
                             pass
@@ -497,7 +497,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
                     case _:
                         if self.netprinter_debugmode == 'True':
-                            print("Unknown DLE DC4 <fn=7> request received: " + next_in, flush=True)
+                            print(f"Unknown DLE DC4 <fn=7> request received: {next_in}", flush=True)
 
                 next_in = next_in + m
 
@@ -527,7 +527,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             case _:
                 #This request is about something else, nothing to do.
                 if self.netprinter_debugmode == 'True':
-                    print("Unknown DLE DC4 request received: " + next_in, flush=True)
+                    print(f"Unknown DLE DC4 request received: {next_in}", flush=True)
                     
         return next_in
 
@@ -603,7 +603,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                     
                             case _:
                                 if self.netprinter_debugmode == 'True':
-                                    print("Unknown FS ( E <fn=61> request received: " + next_in, flush=True) 
+                                    print(f"Unknown FS ( E <fn=61> request received: {next_in}", flush=True) 
                        
                     case _:
                         #In other cases, no response needed
@@ -614,7 +614,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                                 print(f"No-response-needed FS ( E <fn={fn}> request", flush=True)
                         else:
                             if self.netprinter_debugmode == 'True':
-                                print("Unknown FS ( E request received: " + next_in, flush=True) 
+                                print(f"Unknown FS ( E request received: {next_in}", flush=True) 
             
             case  b'\x4C': # FS ( L Select label and black mark control function(s)
                 
@@ -750,7 +750,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 
             case _:
                 if self.netprinter_debugmode == 'True':
-                    print("Non-status GS g request received: " + next_in, flush=True)
+                    print(f"Non-status GS g request received: {next_in}", flush=True)
 
         return next_in
 
@@ -856,7 +856,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                 
             case _:
                 if self.netprinter_debugmode == 'True':
-                    print("Unknown GS i request received: " + next_in, flush=True)
+                    print(f"Unknown GS i request received: {next_in}", flush=True)
 
         return next_in
 
@@ -1098,7 +1098,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
                         
                     case _:
                         if self.netprinter_debugmode == 'True':
-                            print("Unknown customized setting requested: " + a, flush=True)   
+                            print(f"Unknown customized setting requested: {a}", flush=True)   
                         
                 if int.from_bytes(a) in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,20,21,22,70,71,73,97,98,100,101,102,103,104,105,106,111,112,113]:
                     self.send_response_gs_parens_E_fn6(a, response)
@@ -1217,7 +1217,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             case _:
                         #Any other functions that do not transmit data back - we consume the parameter bytes.
                 if self.netprinter_debugmode == 'True':
-                    print("No-response-needed GS ( E command received: " + str(request), flush=True)
+                    print(f"No-response-needed GS ( E command received: {request}", flush=True)
                 request = request + self.consume_parameter_data(pL, pH)
         return request
 
