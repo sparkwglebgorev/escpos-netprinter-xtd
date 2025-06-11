@@ -93,13 +93,13 @@ class InlineFormatting
                 $this -> charCodeTable = "CP850";
                 break;
             case 3:     //PC860: Portuguese
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP860";  
                 break;
             case 4:     //4 [PC863: Canadian-French]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP863";  
                 break;
             case 5:     //Page 5 [PC865: Nordic]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP865";  
                 break;
             case 6:     //Page 6 [Hiragana]
                 $this -> charCodeTable = "auto";  //TODO: find this one
@@ -127,6 +127,7 @@ class InlineFormatting
                 break;
             case 16:    //Page 16 [WPC1252]
                 $this -> charCodeTable = "CP1252";
+                break;
             case 17:    //Page 17 [PC866: Cyrillic #2]
                 $this -> charCodeTable = "CP866";  
                 break;
@@ -176,18 +177,20 @@ class InlineFormatting
                 $this -> charCodeTable = "auto";  //TODO: find this one
                 break;
             case 36:    //Page 36 [PC862: Hebrew]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP862";  
                 break;
             case 37:    //Page 37 [PC864: Arabic]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP864";  
                 break;
             case 38:    //Page 38 [PC869: Greek]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP869";  
                 break;
             case 39:    //Page 39 [ISO8859-2: Latin 2]
                 $this -> charCodeTable = "ISO-8859-2";
+                break;
             case 40:    //Page 40 [ISO8859-15: Latin 9]
-                $this -> charCodeTable = "ISO-8859-15";
+                $this -> charCodeTable = "auto";    //TODO: find this one
+                break;
             case 41:    //Page 41 [PC1098: Farsi]
                 $this -> charCodeTable = "auto";  //TODO: find this one
                 break;
@@ -207,22 +210,22 @@ class InlineFormatting
                 $this -> charCodeTable = "CP1251";  
                 break;
             case 47:    //Page 47 [WPC1253: Greek]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "WINDOWS-1253";  
                 break;
             case 48:    //Page 48 [WPC1254: Turkish]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "WINDOWS-1254";  
                 break;
             case 49:    //Page 49 [WPC1255: Hebrew]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "WINDOWS-1255";  
                 break;
             case 50:    //Page 50 [WPC1256: Arabic]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "WINDOWS-1256";  
                 break;
             case 51:    //Page 51 [WPC1257: Baltic Rim]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "WINDOWS-1257";  
                 break;
             case 52:    //Page 52 [WPC1258: Vietnamese]
-                $this -> charCodeTable = "auto";  //TODO: find this one
+                $this -> charCodeTable = "CP1258";  
                 break;
             case 53:    //Page 53 [KZ-1048: Kazakhstan]
                 $this -> charCodeTable = "auto";  //TODO: find this one
