@@ -124,6 +124,34 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
     data = s.recv(1024)
 
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, int(PORT)))
+
+    print("Test mixed code pages")
+    # Test character encoding with configuration
+    
+    s.sendall(b'Hello printer.\n')
+    
+    s.sendall(b'\x1bt\x00') #send ESC t 0 (select CP437 encoding)
+    s.sendall("CP437 - Montréal (à Québec)\n".encode("cp437"))
+    
+    s.sendall(b'\x1bt\x02') #send ESC t 2 (select PC850 encoding)
+    s.sendall("PC850 - Montréal (à Québec)\n".encode("cp850"))
+    
+    s.sendall(b'\x1bt\x04') #send ESC t 4 (select PC863 encoding)
+    s.sendall("PC863 - Montréal (à Québec)\n".encode("cp863"))
+    
+    s.sendall(b'\x1bt\x13') #send ESC t 19 (select PC858 encoding)
+    s.sendall("PC858 - Montréal (à Québec)\n".encode("cp858"))
+    
+    s.sendall(b'\x1bt\x27') #send ESC t 19 (select ISO8859-2 encoding)    
+    s.sendall("ISO-8859-2 - Montréal (ô Québec)\n".encode("iso8859-2"))
+
+    s.sendall(b'\n\nTest mixed code pages complete\n')
+    
+    s.shutdown(socket.SHUT_WR) #Indiquer qu'on a fini de transmettre, et qu'on est prêt à recevoir.
+    data = s.recv(1024)
+
 print("Test finished without exceptions")
 
 print(f"Received {data!r}")

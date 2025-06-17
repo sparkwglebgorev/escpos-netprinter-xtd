@@ -78,11 +78,11 @@ class InlineFormatting
      * 
      * This is necessary to implement ESC t and do encodings right.
      * 
-     * @param $escposPageNumber A page number byte (range 0-255) as defined in the ESC/POS specification
+     * @param $escposPageNumber A page number int (range 0-255) as defined in the ESC/POS specification
      */
-    public function setCharCodeTable($escposPageNumber)
+    public function setCharCodeTable(int $escposPageNumber): void
     {
-        switch(ord($escposPageNumber)){
+        switch($escposPageNumber){
             case 0:     //PC437
                 $this -> charCodeTable = "CP437";
                 break;

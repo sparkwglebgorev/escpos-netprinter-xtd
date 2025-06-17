@@ -8,7 +8,7 @@ use ReceiptPrintHq\EscposTools\Parser\Command\CommandOneArg;
  */
 class SelectCharCodeCmd extends CommandOneArg
 {
-    public function getCodePage(){
+    public function getCodePage():int {
         return parent::getArg();
     }
 }

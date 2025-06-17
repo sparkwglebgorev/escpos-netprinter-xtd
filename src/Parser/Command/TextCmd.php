@@ -28,14 +28,19 @@ class TextCmd extends Command implements TextContainer
      * 
      * This requires PHP 8.1.0+ to work.
      * @param InlineFormatting $context The current text formatting values, used to get the required encoding.
+     * @return array|bool|string The UTF8 encoded text.
      */
-    public function getText(InlineFormatting $context = new InlineFormatting)  
+    public function getText(InlineFormatting $context = new InlineFormatting): array|bool|string  
     {
         $text = "";
-
-        $mbWrapper = new MbWrapper();
-
-        $text = $mbWrapper->convert(str: $this -> str, fromCharset: $context -> charCodeTable, toCharset: "UTF-8");
+        if($context->charCodeTable == "auto"){
+            # This charset is unknown to MbWrapper, so we try mbstring's "auto" as a last resort.
+            $text = mb_convert_encoding(string: $this->str, to_encoding: "UTF-8", from_encoding: "auto");
+        }
+        else{
+            $mbWrapper = new MbWrapper();
+            $text = $mbWrapper->convert(str: $this -> str, fromCharset: $context -> charCodeTable, toCharset: "UTF-8");
+        }
         return $text;
     }
 }
