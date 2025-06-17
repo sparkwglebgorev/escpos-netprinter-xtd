@@ -25,11 +25,12 @@
 	},
 
 	// Make sure the esc2html requisites are installed
-	"postCreateCommand": "composer install",
+	"postCreateCommand": "pecl install xdebug && docker-php-ext-enable xdebug && composer install",
 
     // Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
-		"ms-python.python"
+		"ms-python.python",
+		"xdebug.php-debug"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
