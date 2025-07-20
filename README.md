@@ -33,6 +33,8 @@ docker run -d  \
 ### Once started
 Once started, the container will accept prints by JetDirect on the default port(9100) and by lpd on the default port(515).   You can access all received receipts with the web application at port 80.  
 
+The receipts are kept on a docker volume, so they will be kept if the container is restarted.   To make the prints temporary, simply remove the `--mount` line from the run command.
+
 Version 3.1 is capable of dealing with all status requests from POS systems as described in the Epson APG.
 
 ## Working on the code
