@@ -63,7 +63,7 @@ docker run -d  \
 ### Debugging 
 Two interfaces have been made avaliable to help debugging.
 
-There is also a general environment flag that make the Docker logs more verbose:  set ```ESCPOS_DEBUG=True``` (case-sensitive)
+There is also a general environment flag that make the Docker logs verbose:  set ```ESCPOS_DEBUG=True``` (case-sensitive)
 ```bash
 docker run -d  \
     -p 515:515/tcp \
@@ -73,6 +73,11 @@ docker run -d  \
     --env ESCPOS_DEBUG=True  \
     escpos-netprinter:3.1.1
 ```
+Setting this variable will generate logs from 3 different sources:
+- The CUPS printer driver
+- Jetdirect requests
+- The ESC/POS to HTML conversion itself
+- Accesses to the web interface
 
 If you have problems with the CUPS interface, you can add port 631 to access the CUPS administrator interface.   The CUPS administrative username is `cupsadmin` and the password is `123456`;  you can change that in the dockerfile or at runtime inside the administrator interface.
 ```bash
@@ -84,6 +89,24 @@ docker run -d  \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
     escpos-netprinter:3.1.1
 ```
+
+### Runtime Directory Structure
+
+The following directories inside the container are useful:
+- `/home/escpos-emu/web/`: Stores all the printed receipts and other control info
+- `/home/escpos-emu/web/receipts`: Stores the HTML receipts 
+- `/home/escpos-emu/web/tmp`: Stores temporary files during processing (for debugging only)
+- `/home/escpos-emu/web/receipt_list.csv`: Created at runtime, this file contains the list of the printed receipts with the file location.
+
+## Configuration Options
+
+The following environment variables can be configured:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| ESCPOS_DEBUG | false | Enable debug mode for detailed logs |
+| PRINTER_PORT | 9100 | JetDirect port for printer communication |
+| FLASK_RUN_DEBUG | false | Enable Flask debug mode |
+| FLASK_RUN_PORT | 80 | Sets the listening port for the web interface |
 
 ## Known issues
 While version 3.1.1 is no longer a beta version, it has known defects:
