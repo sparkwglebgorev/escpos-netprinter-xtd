@@ -41,13 +41,13 @@ Version 3.1 is capable of dealing with all status requests from POS systems as d
 
 ### Building from source
 
-To install v3.1 from source:
+To install v3.1.1 from source:
 
 ```bash
-wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/tags/3.1.zip
-unzip 3.1.zip 
-cd escpos-netprinter-3.1
-docker build -t escpos-netprinter:3.1 .
+wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/tags/3.1.1.zip
+unzip 3.1.1.zip 
+cd escpos-netprinter-3.1.1
+docker build -t escpos-netprinter:3.1.1 .
 ```
 
 To run the resulting container:
@@ -57,7 +57,7 @@ docker run -d  \
     -p 80:80/tcp   \
     -p 9100:9100/tcp \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
-    escpos-netprinter:3.1
+    escpos-netprinter:3.1.1
 ```
 
 ### Debugging 
@@ -71,7 +71,7 @@ docker run -d  \
     -p 9100:9100/tcp \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
     --env ESCPOS_DEBUG=True  \
-    escpos-netprinter:3.1
+    escpos-netprinter:3.1.1
 ```
 
 If you have problems with the CUPS interface, you can add port 631 to access the CUPS administrator interface.   The CUPS administrative username is `cupsadmin` and the password is `123456`;  you can change that in the dockerfile or at runtime inside the administrator interface.
@@ -82,11 +82,11 @@ docker run -d  \
     -p 9100:9100/tcp \
     -p 631:631/tcp
     --mount source=receiptVolume,target=/home/escpos-emu/web \
-    escpos-netprinter:3.1
+    escpos-netprinter:3.1.1
 ```
 
 ## Known issues
-While version 3.1 is no longer a beta version, it has known defects:
+While version 3.1.1 is no longer a beta version, it has known defects:
 - It still uses the Flask development server, so it is unsafe for public networks.
 - While it works with simple drivers, for example the one for the MUNBYN ITPP047 printers, the [Epson utilities](https://download.epson-biz.com/modules/pos/) refuse to speak to it.
 
