@@ -73,6 +73,22 @@ body {
     font-size: 75%
 }
 
+.esc-line-command{
+    text-align: center;
+    font-weight: bold;
+    background: linear-gradient(180deg,
+        rgba(0,0,0,0) calc(50% - 1px),
+        rgba(192,192,192,1) calc(50%),
+        rgba(0,0,0,0) calc(50% + 1px)
+    );
+}
+
+.esc-line-command .command{
+    background-color:white;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
 span {
     display: inline-block;
 }

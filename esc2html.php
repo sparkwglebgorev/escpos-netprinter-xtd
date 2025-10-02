@@ -165,6 +165,44 @@ foreach ($commands as $cmd) {
                     break;
             }
         }
+    } else if ($cmd -> isAvailableAs('PrintBarcodeCmd')) {
+        $types = [
+            0  => 'TypeUpcA',
+            65 => 'TypeUpcA',
+            1  => 'TypeUpcE',
+            66 => 'TypeUpcE',
+            2  => 'TypeEan13',
+            67 => 'TypeEan13',
+            3  => 'TypeEan8',
+            68 => 'TypeEan8',
+            4  => 'TypeCode39',
+            69 => 'TypeCode39',
+            7  => 'TypeITF14',
+            70 => 'TypeITF14',
+            6  => 'TypeCodabar',
+            71 => 'TypeCodabar',
+            72 => 'TypeCode93',
+            73 => 'TypeCode128',
+            74 => 'TypeCode128',
+        ];
+        $type = $types[$cmd->getType()] ?? null;
+        $data = $cmd -> subCommand()->getData();
+        $lineHtml = ""; // flush buffer
+
+        if ($type){
+            $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
+            $renderer->setBackgroundColor([255, 255, 255]);
+            $renderer->useGd();
+            $type = '\\Picqer\\Barcode\\Types\\' . $type;
+            $barcode = (new $type)->getBarcode($data);
+            $imgSrc = base64_encode($renderer->render($barcode, $barcode->getWidth(), 40)); # TODO: Check width/height on cmd? 
+            $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" /></div>";
+        } else {
+            # TODO: maybe implement by printing the info?
+            //$classes = getBlockClasses($formatting);
+            //$classesStr = implode(" ", $classes);
+            //$outp[] = wrapInline("<div class=\"$classes esc-line-command\">", "</div>", "<span class=\"command\">BARCODE NOT SUPPORTED - {$cmd->getType()}[{$data}]</span>");
+        }
     }
 }
 
