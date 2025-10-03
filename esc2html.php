@@ -18,7 +18,7 @@ if ($argc < 2) {
     exit(1);
 }
 else {
-    if ($argv[1]=='--debug'){ 
+    if ($argv[1]=='--debug'){
         $debugMode = true;
         if (!isset($argv[2])) {
             print("Usage: php " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
@@ -46,7 +46,7 @@ $fp = fopen($targetFilename, 'rb');
 if ( !$fp ) {
     error_log("File ". $targetFilename . "not found.");
     exit(1);
-}  
+}
 
 $parser = new Parser();
 $parser -> addFile($fp);
@@ -60,6 +60,9 @@ $bufferedImg = null;
 $imgNo = 0;
 $skipLineBreak = false;
 $code2dStorage = new Code2DStateStorage();
+$barcodeHeight = null;
+$barcodeWidth = null;
+$barcodeHri = null;
 
 foreach ($commands as $cmd) {
     if ($debugMode) error_log("". get_class($cmd) ."", 0); //Output the command class in the debug console
@@ -121,7 +124,7 @@ foreach ($commands as $cmd) {
             error_log("Data size:". $sub->getDataSize() ."",0);
             error_log("Data: " . $sub->get_data() ."",0);
         }
-        if($sub->isAvailableAs('QRCodeSubCommand')){ 
+        if($sub->isAvailableAs('QRCodeSubCommand')){
             switch ($sub->get_fn()) {
                 case 65:  //set model
                     $code2dStorage->setQRModel($sub->get_data());
@@ -158,13 +161,19 @@ foreach ($commands as $cmd) {
                         $qrcodeData = $code2dStorage->getQRCodeData();
                         $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$qrcodeURI\" alt=\"$qrcodeData\" /></div>";
                     }
-                    
+
                     break;
                 case 82:  //Transmit size information of symbol storage data.
                     # TODO: maybe implement by printing the info?
                     break;
             }
         }
+    }if ($cmd -> isAvailableAs('SetBarcodeHeightCmd')) {
+        $barcodeHeight = $cmd -> getArg();
+    } else if ($cmd -> isAvailableAs('SetBarcodeWidthCmd')) {
+        $barcodeWidth = $cmd -> getArg();
+    } else if ($cmd -> isAvailableAs('SelectHriPrintPosCmd')) {
+        $barcodeHri = $cmd -> getArg();
     } else if ($cmd -> isAvailableAs('PrintBarcodeCmd')) {
         $types = [
             0  => 'TypeUpcA',
@@ -177,32 +186,37 @@ foreach ($commands as $cmd) {
             68 => 'TypeEan8',
             4  => 'TypeCode39',
             69 => 'TypeCode39',
-            7  => 'TypeITF14',
-            70 => 'TypeITF14',
             6  => 'TypeCodabar',
             71 => 'TypeCodabar',
             72 => 'TypeCode93',
             73 => 'TypeCode128',
-            74 => 'TypeCode128',
         ];
         $type = $types[$cmd->getType()] ?? null;
         $data = $cmd -> subCommand()->getData();
-        $lineHtml = ""; // flush buffer
-
+        $classes = getBlockClasses($formatting);
+        $classesStr = implode(" ", $classes);
         if ($type){
             $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
             $renderer->setBackgroundColor([255, 255, 255]);
             $renderer->useGd();
             $type = '\\Picqer\\Barcode\\Types\\' . $type;
             $barcode = (new $type)->getBarcode($data);
-            $imgSrc = base64_encode($renderer->render($barcode, $barcode->getWidth(), 40)); # TODO: Check width/height on cmd? 
-            $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" /></div>";
+            $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
+            $lineHtml = "<img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" />";
+
         } else {
-            # TODO: maybe implement by printing the info?
-            //$classes = getBlockClasses($formatting);
-            //$classesStr = implode(" ", $classes);
-            //$outp[] = wrapInline("<div class=\"$classes esc-line-command\">", "</div>", "<span class=\"command\">BARCODE NOT SUPPORTED - {$cmd->getType()}[{$data}]</span>");
+            $classesStr .= ' esc-line-command';
+            $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (NO PREVIEW)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
         }
+        if (in_array($barcodeHri, [1, 3])) {
+            $lineHtml = "<div>$data</div>" . $lineHtml;
+        }
+        if (in_array($barcodeHri, [2, 3])) {
+            $lineHtml = $lineHtml . "<div>$data</div>";
+        }
+        $outp[] = wrapInline("<div class=\"$classesStr\">", "</div>", wrapInline("<span class=\"esc-justify-center\">", "</span>", $lineHtml));
+        $lineHtml = ""; // flush buffer
+        $barcodeWidth = $barcodeHeight = $barcodeHri = null;
     }
 }
 
