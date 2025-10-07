@@ -198,7 +198,11 @@ foreach ($commands as $cmd) {
         if ($type){
             $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
             $renderer->setBackgroundColor([255, 255, 255]);
-            $renderer->useGd();
+            if (!class_exists(\Imagick::class)) {
+                $renderer->useGd();
+            } else {
+                $renderer->useImagick();
+            }
             $type = '\\Picqer\\Barcode\\Types\\' . $type;
             $barcode = (new $type)->getBarcode($data);
             $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
