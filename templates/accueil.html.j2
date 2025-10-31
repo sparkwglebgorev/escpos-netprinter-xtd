@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-    <title>Imprimante virtuelle</title>
+    <title>Virtual escpos printer</title>
 </head>
 <body style="display: flex;flex-direction: column;min-height: 100vh;">
 <div id="page" style="flex-grow: 1;">
-    <h1>État de l'imprimante:</h1>
+    <h1>Printer status</h1>
     <ul>
-        <li>En ligne</li>
-        <li>Adresse de cette imprimante: {{host}}</li>
-        <li>Ports d'impression: {{jetDirectPort}} (Jetdirect), 515 (lpd)</li>
+        <li>Online</li>
+        <li>Current address: {{host}}</li>
+        <li>Print ports: {{jetDirectPort}} (Jetdirect), 515 (lpd)</li>
         {%if debug == 'True'%}
-            <li><b style="color:#8B0000">Mode débogage activé</b></li>
+            <li><b style="color:#8B0000">Debug enabled</b></li>
         {%endif%}
     </ul>
     
-    <a href="/recus">Consulter la liste des reçus imprimés</a>
+    <a href="/receipt">Look for printed receipts</a>
 </div>
 {% include 'footer.html' %}
 </body>
