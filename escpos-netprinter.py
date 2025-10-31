@@ -4,6 +4,7 @@ from os import getenv
 from io import BufferedWriter
 import csv
 import subprocess
+import myconsts
 from subprocess import CompletedProcess
 from pathlib import PurePath
 from lxml import html, etree
@@ -1409,7 +1410,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             # append the error output to the log file
             with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
                 log.write(f"Error while converting a JetDirect print: {err.returncode}")
-                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z'))
+                log.write(datetime.now(tz=ZoneInfo(myconsts.UTC_ZONE)).isoformat())
                 log.write(err.stderr)
                 log.close()
             
@@ -1421,25 +1422,25 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             print (f"Receipt decoded", flush=True)
             with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
                 log.write("Successful JetDirect print\n")
-                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z\n\n'))
+                log.write(datetime.now(tz=ZoneInfo(myconsts.UTC_ZONE)).isoformat())
                 log.write(recu.stderr)
                 log.close()
             #print(recu.stdout, flush=True)
 
             #Ajouter un titre au reçu
-            heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
+            heureRecept = datetime.now(tz=ZoneInfo(myconsts.UTC_ZONE))
             recuConvert = self.add_html_title(heureRecept, recu.stdout)
 
             #print(etree.tostring(theHead), flush=True)
 
             try:
                 #Créer un nouveau fichier avec le nom du reçu
-                html_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X.%f%Z'))
+                html_filename = 'receipt{}.html'.format(heureRecept.isoformat())
                 with open(PurePath('web', 'receipts', html_filename), mode='wt') as nouveauRecu:
                     #Écrire le reçu dans le fichier.
                     nouveauRecu.write(recuConvert)
                     nouveauRecu.close()
-                    #Ajouter le reçu à la liste des reçus
+                    #Add receipt to receipts directory
                     self.add_receipt_to_directory(html_filename)
 
             except OSError as err:
@@ -1452,7 +1453,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
 
         theHead:etree.Element = recuConvert.head
         newTitle = etree.Element("title")
-        newTitle.text = "Reçu imprimé le {}".format(heureRecept.strftime('%d %b %Y @ %X%Z'))
+        newTitle.text = "Reçu imprimé le {}".format(heureRecept.isoformat())
         theHead.append(newTitle)
 
         return html.tostring(recuConvert).decode()
@@ -1491,7 +1492,7 @@ def accueil():
                            jetDirectPort=getenv('PRINTER_PORT', '9100'),
                             debug=getenv('FLASK_RUN_DEBUG', "false") )
 
-@app.route("/recus")
+@app.route("/receipt")
 def list_receipts():
     """ List all the receipts available """
     try:
@@ -1513,7 +1514,7 @@ def list_receipts():
         return redirect(url_for('accueil'))
     
 
-@app.route("/recus/<int:fileID>")
+@app.route("/receipt/<int:fileID>")
 def show_receipt(fileID:int):
     """ Show the receipt with the given ID """
     # Open the CSV file in read mode
@@ -1541,7 +1542,7 @@ def show_receipt(fileID:int):
 @app.route("/newReceipt")
 def publish_receipt_from_CUPS():
     """ Get the receipt from the CUPS temp directory and publish it in the web/receipts directory and add the corresponding log to our permanent logfile"""
-    heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
+    heureRecept = datetime.now(tz=ZoneInfo(myconsts.UTC_ZONE))
     #NOTE: on set dans cups-files.conf le répertoire TempDir:   
     #Extraire le répertoire temporaire de CUPS de cups-files.conf
     source_dir=PurePath('/var', 'spool', 'cups', 'tmp')
@@ -1551,7 +1552,7 @@ def publish_receipt_from_CUPS():
     source_file = source_dir.joinpath(source_filename)
 
     # specify the destination filename
-    new_filename = 'receipt{}.html'.format(heureRecept.strftime('%Y%b%d_%X.%f%Z'))
+    new_filename = 'receipt{}.html'.format(heureRecept.isoformat())
 
     # Create the full destination path with the new filename
     destination_file = PurePath('web', 'receipts', new_filename)
@@ -1572,7 +1573,7 @@ def publish_receipt_from_CUPS():
     # print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='a')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
-    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}\n")
+    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).isoformat()}\n")
     log.write(source_log.read())
     log.close()
     source_log.close()
