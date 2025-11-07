@@ -12,6 +12,7 @@ RUN install-php-extensions mbstring @composer imagick
 #Install Flask
 RUN apt-get update
 RUN apt-get install -y python3-flask 
+RUN apt-get install -y python3-flask-babel
 RUN apt-get install -y python3-lxml
 
 #Install CUPS
@@ -54,6 +55,11 @@ ENV FLASK_RUN_DEBUG=false
 # To activate the netprinter debug mode, set at True (case-sensitive)
 ENV ESCPOS_DEBUG=false
 
+#Localization support environment variables
+ENV ESCPOS_TIMEZONE="America/Montreal"
+
+
+# Expose all necessary ports
 EXPOSE ${PRINTER_PORT}
 EXPOSE ${FLASK_RUN_PORT}
 #Expose the lpd port

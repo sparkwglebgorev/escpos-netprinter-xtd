@@ -1,5 +1,5 @@
 import os
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, session, url_for
 from os import getenv
 from io import BufferedWriter
 import csv
@@ -9,10 +9,11 @@ from pathlib import PurePath
 from lxml import html, etree
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from flask_babel import Babel
+import babel_config
 
 import threading 
 import socketserver
-
 
 #Network ESC/pos printer server
 class ESCPOSServer(socketserver.TCPServer):
@@ -1409,7 +1410,7 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             # append the error output to the log file
             with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
                 log.write(f"Error while converting a JetDirect print: {err.returncode}")
-                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z'))
+                log.write(datetime.now(tz=ZoneInfo(os.environ['ESCPOS_TIMEZONE'])).strftime('%Y%b%d %X.%f %Z'))
                 log.write(err.stderr)
                 log.close()
             
@@ -1421,13 +1422,13 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             print (f"Receipt decoded", flush=True)
             with open(PurePath('web','tmp', 'esc2html_log'), mode='at') as log:
                 log.write("Successful JetDirect print\n")
-                log.write(datetime.now(tz=ZoneInfo("Canada/Eastern")).strftime('%Y%b%d %X.%f %Z\n\n'))
+                log.write(datetime.now(tz=ZoneInfo(os.environ['ESCPOS_TIMEZONE'])).strftime('%Y%b%d %X.%f %Z\n\n'))
                 log.write(recu.stderr)
                 log.close()
             #print(recu.stdout, flush=True)
 
             #Ajouter un titre au reçu
-            heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
+            heureRecept = datetime.now(tz=ZoneInfo(os.environ['ESCPOS_TIMEZONE']))
             recuConvert = self.add_html_title(heureRecept, recu.stdout)
 
             #print(etree.tostring(theHead), flush=True)
@@ -1483,8 +1484,39 @@ class ESCPOSHandler(socketserver.StreamRequestHandler):
             writer.writerow([next_fileID, new_filename])    
                
 
+## Printer UI
+
+# Flask startup
 app = Flask(__name__)
 
+# Babel setup
+
+def get_locale() -> str | None:
+    lang = request.cookies.get('lang')
+    if lang in babel_config.Config.LANGUAGES :
+        return lang
+    else :
+        return request.accept_languages.best_match(babel_config.Config.LANGUAGES)
+
+babel = Babel(app, locale_selector=get_locale)
+
+@app.context_processor
+def inject_conf_var():
+    return dict(AVAILABLE_LANGUAGES=babel_config.Config.LANGUAGES,
+                CURRENT_LANGUAGE=get_locale())
+
+@app.route('/language=<language>')
+def set_language(language=None):
+    resp = redirect(url_for('accueil'))
+    # Check if the desired translation is available.  If not, get the best match to what the browser desires. 
+    if language in babel_config.Config.LANGUAGES:
+        resp.set_cookie('lang', language)
+    else:
+        resp.set_cookie('lang', request.accept_languages.best_match(babel_config.Config.LANGUAGES) ) # Ignore the request and guess the preferred language of the browser.
+    return resp
+
+
+# Flask routes for the UI
 @app.route("/")
 def accueil():
     return render_template('accueil.html.j2', host = request.host.split(':')[0], 
@@ -1534,14 +1566,14 @@ def show_receipt(fileID:int):
         with open(PurePath('web', 'receipts', filename), mode='rt') as receipt:
             receipt_html = receipt.read()   # Read the file content
             receipt_html = receipt_html.replace('<body>', '<body style="display: flex;flex-direction: column;min-height: 100vh;"><div id="page" style="flex-grow: 1;">')
-            receipt_html = receipt_html.replace('</body>', '</div>' + render_template('footer.html') + '</body>')  # Append the footer
+            receipt_html = receipt_html.replace('</body>', '</div>' + render_template('footer.html.j2') + '</body>')  # Append the footer
             return receipt_html
     
 
 @app.route("/newReceipt")
 def publish_receipt_from_CUPS():
     """ Get the receipt from the CUPS temp directory and publish it in the web/receipts directory and add the corresponding log to our permanent logfile"""
-    heureRecept = datetime.now(tz=ZoneInfo("Canada/Eastern"))
+    heureRecept = datetime.now(tz=ZoneInfo(os.environ['ESCPOS_TIMEZONE']))  #TODO:  make this configurable from the dockerfile.
     #NOTE: on set dans cups-files.conf le répertoire TempDir:   
     #Extraire le répertoire temporaire de CUPS de cups-files.conf
     source_dir=PurePath('/var', 'spool', 'cups', 'tmp')
@@ -1572,13 +1604,17 @@ def publish_receipt_from_CUPS():
     # print(logfile_filename)
     log = open(PurePath('web','tmp', 'esc2html_log'), mode='a')
     source_log = open(source_dir.joinpath(logfile_filename), mode='rt')
-    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo('Canada/Eastern')).strftime('%Y%b%d %X.%f %Z')}\n")
+    log.write(f"CUPS print received at {datetime.now(tz=ZoneInfo(os.environ['ESCPOS_TIMEZONE'])).strftime('%Y%b%d %X.%f %Z')}\n")
     log.write(source_log.read())
     log.close()
     source_log.close()
 
     #send an http acknowledgement
     return "OK"
+
+## End printer UI
+
+
 
 
 def launchPrintServer(printServ:ESCPOSServer):
