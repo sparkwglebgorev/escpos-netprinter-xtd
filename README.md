@@ -119,6 +119,7 @@ The following environment variables can be configured:
 | PRINTER_PORT | 9100 | JetDirect port for printer communication |
 | FLASK_RUN_DEBUG | false | Enable Flask debug mode |
 | FLASK_RUN_PORT | 80 | Sets the listening port for the web interface |
+| ESCPOS_TIMEZONE | "America/Montreal" | Sets the timezone for all datetime formatting |
 
 ## Known issues
 While version 3.1.1 is no longer a beta version, it has known defects:
