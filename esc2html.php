@@ -175,7 +175,7 @@ foreach ($commands as $cmd) {
     } else if ($cmd -> isAvailableAs('SelectHriPrintPosCmd')) {
         $barcodeHri = $cmd -> getArg();
     } else if ($cmd -> isAvailableAs('PrintBarcodeCmd')) {
-        $types = [
+        $types = [ // download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lk.html
             0  => 'TypeUpcA',
             65 => 'TypeUpcA',
             1  => 'TypeUpcE',
@@ -190,12 +190,20 @@ foreach ($commands as $cmd) {
             71 => 'TypeCodabar',
             72 => 'TypeCode93',
             73 => 'TypeCode128',
+            5  => 'NoTypePreview',
+            70 => 'NoTypePreview',
+            74 => 'NoTypePreview',
+            75 => 'NoTypePreview',
+            76 => 'NoTypePreview',
+            77 => 'NoTypePreview',
+            78 => 'NoTypePreview',
+            79 => 'NoTypePreview',
         ];
         $type = $types[$cmd->getType()] ?? null;
         $data = $cmd -> subCommand()->getData();
         $classes = getBlockClasses($formatting);
         $classesStr = implode(" ", $classes);
-        if ($type){
+        if ($type && $type !== 'NoTypePreview'){
             $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
             $renderer->setBackgroundColor([255, 255, 255]);
             if (!class_exists(\Imagick::class)) {
@@ -207,10 +215,13 @@ foreach ($commands as $cmd) {
             $barcode = (new $type)->getBarcode($data);
             $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
             $lineHtml = "<img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" />";
-
-        } else {
+        } else if ($type) { // NoTypePreview
             $classesStr .= ' esc-line-command';
             $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (NO PREVIEW)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
+        } else { // Missing type
+            $lineHtml = ""; // flush buffer
+            $barcodeWidth = $barcodeHeight = $barcodeHri = null;
+            continue;
         }
         if (in_array($barcodeHri, [1, 3])) {
             $lineHtml = "<div>$data</div>" . $lineHtml;
