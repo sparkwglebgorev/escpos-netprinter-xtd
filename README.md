@@ -98,6 +98,18 @@ The following directories inside the container are useful:
 - `/home/escpos-emu/web/tmp`: Stores temporary files during processing (for debugging only)
 - `/home/escpos-emu/web/receipt_list.csv`: Created at runtime, this file contains the list of the printed receipts with the file location.
 
+## Translations
+
+This project supports internationalization using [Flask-Babel](https://python-babel.github.io/flask-babel).   All translation files are in the `/translations` subdirectory, including the `messages.pot` file.
+
+You can create a new locale using the following scripts:
+- `init_babel_locale.sh`: to create a new locale file  NOTE: you will need to add the locale in `babel_config.py` manually after this.
+- `compile_babel_translations.sh`:  to compile all locales and make them available to Flask. This should be launched after every change to the translations, not immediately after creating a locale.
+
+Other helpful scripts for developers :
+- `update_babel_messages.sh`: If you add more translatable text in the UI or code, use this script to make Babel extract and add them to the locale files
+- `extract_babel_messages.sh`:  If you ever want to generate the `messages.pot` file without updating any locale, this is the script.
+
 ## Configuration Options
 
 The following environment variables can be configured:

@@ -1,0 +1,12 @@
+<!-- Language selector UI -->
+
+<div id="lang_select" style="float:right">
+{{ _("Changer de langue:")}}
+{% for language in AVAILABLE_LANGUAGES %}
+    {% if CURRENT_LANGUAGE == language %}
+        {{ language }}
+    {% else %}
+        <a href="{{ url_for('set_language', language=language) }}" >{{ language }}</a>
+    {%  endif %}
+{% endfor %} 
+</div>
