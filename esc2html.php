@@ -203,23 +203,29 @@ foreach ($commands as $cmd) {
         $data = $cmd -> subCommand()->getData();
         $classes = getBlockClasses($formatting);
         $classesStr = implode(" ", $classes);
-        if ($type && $type !== 'NoTypePreview'){
-            $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
-            $renderer->setBackgroundColor([255, 255, 255]);
-            if (!class_exists(\Imagick::class)) {
-                $renderer->useGd();
-            } else {
-                $renderer->useImagick();
+        if ($type){  //A valid barcode system type has been specified 
+            if($type !== 'NoTypePreview'){
+                $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
+                $renderer->setBackgroundColor([255, 255, 255]);
+                if (!class_exists(\Imagick::class)) {
+                    $renderer->useGd();
+                } 
+                else {
+                    $renderer->useImagick();
+                }
+                $type = '\\Picqer\\Barcode\\Types\\' . $type;
+                $barcode = (new $type)->getBarcode($data);
+                $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
+                $lineHtml = "<img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" />";
+            } 
+            else { // A valid type that cannot be rendered by the library.
+                $classesStr .= ' esc-line-command';
+                $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (NO PREVIEW AVAILABLE)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
             }
-            $type = '\\Picqer\\Barcode\\Types\\' . $type;
-            $barcode = (new $type)->getBarcode($data);
-            $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
-            $lineHtml = "<img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" />";
-        } else if ($type) { // NoTypePreview
+        }            
+        else { // Missing or invalid barcode system type
             $classesStr .= ' esc-line-command';
-            $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (NO PREVIEW)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
-        } else { // Missing type
-            $lineHtml = ""; // flush buffer
+            $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (UNKNOWN TYPE)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
             $barcodeWidth = $barcodeHeight = $barcodeHri = null;
             continue;
         }
