@@ -5,8 +5,8 @@ use ReceiptPrintHq\EscposTools\Parser\Command\EscposCommand;
 
 class CommandTwoArgs extends EscposCommand
 {
-    private $arg1 = null;
-    private $arg2 = null;
+    private ?int $arg1 = null;
+    private ?int $arg2 = null;
 
     public function addChar($char)
     {
@@ -20,12 +20,12 @@ class CommandTwoArgs extends EscposCommand
         return false;
     }
 
-    public function getArg1()
+    protected function getArg1(): ?int
     {
         return $this -> arg1;
     }
 
-    public function getArg2()
+    protected function getArg2(): ?int
     {
         return $this -> arg2;
     }

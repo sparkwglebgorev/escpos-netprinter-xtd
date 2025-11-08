@@ -169,11 +169,11 @@ foreach ($commands as $cmd) {
             }
         }
     }if ($cmd -> isAvailableAs('SetBarcodeHeightCmd')) {
-        $barcodeHeight = $cmd -> getArg();
+        $barcodeHeight = $cmd -> getHeight();
     } else if ($cmd -> isAvailableAs('SetBarcodeWidthCmd')) {
-        $barcodeWidth = $cmd -> getArg();
-    } else if ($cmd -> isAvailableAs('SelectHriPrintPosCmd')) {
-        $barcodeHri = $cmd -> getArg();
+        $barcodeWidth = $cmd -> getWidth();
+    } else if ($cmd -> isAvailableAs('SelectBarCodeHriCmd')) {
+        $barcodeHri = $cmd -> getHRI();
     } else if ($cmd -> isAvailableAs('PrintBarcodeCmd')) {
         $types = [ // download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lk.html
             0  => 'TypeUpcA',

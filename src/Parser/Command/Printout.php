@@ -80,7 +80,7 @@ class Printout extends Command
             'I' => 'TransmitPrinterID',
             'h' => 'SetBarcodeHeightCmd',
             'w' => 'SetBarcodeWidthCmd',
-            'H' => 'SelectHriPrintPosCmd',
+            'H' => 'SelectBarCodeHriCmd',
             'k' => 'PrintBarcodeCmd',
             'v' => array(
                 '0' => 'PrintRasterBitImageCmd'

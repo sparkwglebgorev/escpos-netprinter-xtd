@@ -5,7 +5,7 @@ use ReceiptPrintHq\EscposTools\Parser\Command\EscposCommand;
 
 class CommandOneArg extends EscposCommand
 {
-    private $arg = null;
+    private ?int $arg = null;
 
     public function addChar($char)
     {
@@ -17,7 +17,7 @@ class CommandOneArg extends EscposCommand
         }
     }
     
-    public function getArg()
+    protected function getArg(): ?int
     {
         return $this -> arg;
     }
