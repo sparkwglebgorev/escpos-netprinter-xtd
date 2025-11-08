@@ -18,7 +18,7 @@ if ($argc < 2) {
     exit(1);
 }
 else {
-    if ($argv[1]=='--debug'){ 
+    if ($argv[1]=='--debug'){
         $debugMode = true;
         if (!isset($argv[2])) {
             print("Usage: php " . $argv[0] . " [--debug] filename ". $argc-1 . " arguments received\n");
@@ -46,7 +46,7 @@ $fp = fopen($targetFilename, 'rb');
 if ( !$fp ) {
     error_log("File ". $targetFilename . "not found.");
     exit(1);
-}  
+}
 
 $parser = new Parser();
 $parser -> addFile($fp);
@@ -60,6 +60,9 @@ $bufferedImg = null;
 $imgNo = 0;
 $skipLineBreak = false;
 $code2dStorage = new Code2DStateStorage();
+$barcodeHeight = null;
+$barcodeWidth = null;
+$barcodeHri = null;
 
 foreach ($commands as $cmd) {
     if ($debugMode) error_log("". get_class($cmd) ."", 0); //Output the command class in the debug console
@@ -121,7 +124,7 @@ foreach ($commands as $cmd) {
             error_log("Data size:". $sub->getDataSize() ."",0);
             error_log("Data: " . $sub->get_data() ."",0);
         }
-        if($sub->isAvailableAs('QRCodeSubCommand')){ 
+        if($sub->isAvailableAs('QRCodeSubCommand')){
             switch ($sub->get_fn()) {
                 case 65:  //set model
                     $code2dStorage->setQRModel($sub->get_data());
@@ -158,13 +161,83 @@ foreach ($commands as $cmd) {
                         $qrcodeData = $code2dStorage->getQRCodeData();
                         $outp[] = "<div class=\"esc-line esc-justify-center\"><img class=\"esc-bitimage\" src=\"$qrcodeURI\" alt=\"$qrcodeData\" /></div>";
                     }
-                    
+
                     break;
                 case 82:  //Transmit size information of symbol storage data.
                     # TODO: maybe implement by printing the info?
                     break;
             }
         }
+    }if ($cmd -> isAvailableAs('SetBarcodeHeightCmd')) {
+        $barcodeHeight = $cmd -> getHeight();
+    } else if ($cmd -> isAvailableAs('SetBarcodeWidthCmd')) {
+        $barcodeWidth = $cmd -> getWidth();
+    } else if ($cmd -> isAvailableAs('SelectBarCodeHriCmd')) {
+        $barcodeHri = $cmd -> getHRI();
+    } else if ($cmd -> isAvailableAs('PrintBarcodeCmd')) {
+        $types = [ // download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lk.html
+            0  => 'TypeUpcA',
+            65 => 'TypeUpcA',
+            1  => 'TypeUpcE',
+            66 => 'TypeUpcE',
+            2  => 'TypeEan13',
+            67 => 'TypeEan13',
+            3  => 'TypeEan8',
+            68 => 'TypeEan8',
+            4  => 'TypeCode39',
+            69 => 'TypeCode39',
+            6  => 'TypeCodabar',
+            71 => 'TypeCodabar',
+            72 => 'TypeCode93',
+            73 => 'TypeCode128',
+            5  => 'NoTypePreview',
+            70 => 'NoTypePreview',
+            74 => 'NoTypePreview',
+            75 => 'NoTypePreview',
+            76 => 'NoTypePreview',
+            77 => 'NoTypePreview',
+            78 => 'NoTypePreview',
+            79 => 'NoTypePreview',
+        ];
+        $type = $types[$cmd->getType()] ?? null;
+        $data = $cmd -> subCommand()->getData();
+        $classes = getBlockClasses($formatting);
+        $classesStr = implode(" ", $classes);
+        if ($type){  //A valid barcode system type has been specified 
+            if($type !== 'NoTypePreview'){
+                $renderer = new \Picqer\Barcode\Renderers\PngRenderer();
+                $renderer->setBackgroundColor([255, 255, 255]);
+                if (!class_exists(\Imagick::class)) {
+                    $renderer->useGd();
+                } 
+                else {
+                    $renderer->useImagick();
+                }
+                $type = '\\Picqer\\Barcode\\Types\\' . $type;
+                $barcode = (new $type)->getBarcode($data);
+                $imgSrc = base64_encode($renderer->render($barcode, $barcodeWidth ?? $barcode->getWidth(), $barcodeHeight ?? 40));
+                $lineHtml = "<img class=\"esc-bitimage\" src=\"data:image/jpeg;base64,{$imgSrc}\" alt=\"{$data}\" />";
+            } 
+            else { // A valid type that cannot be rendered by the library.
+                $classesStr .= ' esc-line-command';
+                $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (NO PREVIEW AVAILABLE)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
+            }
+        }            
+        else { // Missing or invalid barcode system type
+            $classesStr .= ' esc-line-command';
+            $lineHtml = "<span class=\"command\">BARCODE {$cmd->getType()} (UNKNOWN TYPE)" . (in_array($barcodeHri, [1, 2, 3]) ? '' : " [$data]") . "</span>";
+            $barcodeWidth = $barcodeHeight = $barcodeHri = null;
+            continue;
+        }
+        if (in_array($barcodeHri, [1, 3])) {
+            $lineHtml = "<div>$data</div>" . $lineHtml;
+        }
+        if (in_array($barcodeHri, [2, 3])) {
+            $lineHtml = $lineHtml . "<div>$data</div>";
+        }
+        $outp[] = wrapInline("<div class=\"$classesStr\">", "</div>", wrapInline("<span class=\"esc-justify-center\">", "</span>", $lineHtml));
+        $lineHtml = ""; // flush buffer
+        $barcodeWidth = $barcodeHeight = $barcodeHri = null;
     }
 }
 
