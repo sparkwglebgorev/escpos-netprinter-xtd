@@ -29,9 +29,12 @@ web/tmp/**
 __pycache__/**
 __pycache__
 
-# Remove test scripts
+# Remove test scripts and test files
 tests/**
 tests
+barcodes.bin
+receipt-with-logo.bin
+receipt-with-qrcode.bin
 
 # Remove pybabel config and translation scripts from the runtime container
 babel.cfg

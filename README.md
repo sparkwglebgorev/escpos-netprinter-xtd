@@ -10,7 +10,7 @@ The printer emulates a 80mm roll of paper.
 ## Limits
 This docker image is not to be exposed on a public network (see [known issues](#known-issues))
 
-A print cannot last longer than 10 seconds.  This timeout could be changed at some point, or made configurable.
+A print cannot last longer than 10 seconds.  This timeout could be changed in the code, or made configurable at some later point.
 
 ## Quick start
 
@@ -28,26 +28,26 @@ docker run -d  \
     -p 80:80/tcp   \
     -p 9100:9100/tcp \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
-    gilbertfl/escpos-netprinter:3.1
+    gilbertfl/escpos-netprinter:3.2
 ```
 ### Once started
 Once started, the container will accept prints by JetDirect on the default port(9100) and by lpd on the default port(515).   You can access all received receipts with the web application at port 80.  
 
 The receipts are kept on a docker volume, so they will be kept if the container is restarted.   To make the prints temporary, simply remove the `--mount` line from the run command.
 
-Version 3.1 is capable of dealing with all status requests from POS systems as described in the Epson APG.
+Version 3.2 is capable of dealing with all status requests from POS systems as described in the Epson APG.
 
 ## Working on the code
 
 ### Building from source
 
-To install v3.1.1 from source:
+To install v3.2 from source:
 
 ```bash
-wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/tags/3.1.1.zip
-unzip 3.1.1.zip 
-cd escpos-netprinter-3.1.1
-docker build -t escpos-netprinter:3.1.1 .
+wget --show-progress https://github.com/gilbertfl/escpos-netprinter/archive/refs/tags/3.2.zip
+unzip 3.2.zip 
+cd escpos-netprinter-3.2
+docker build -t escpos-netprinter:3.2 .
 ```
 
 To run the resulting container:
@@ -57,7 +57,7 @@ docker run -d  \
     -p 80:80/tcp   \
     -p 9100:9100/tcp \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
-    escpos-netprinter:3.1.1
+    escpos-netprinter:3.2
 ```
 
 ### Debugging 
@@ -71,13 +71,13 @@ docker run -d  \
     -p 9100:9100/tcp \
     --mount source=receiptVolume,target=/home/escpos-emu/web \
     --env ESCPOS_DEBUG=True  \
-    escpos-netprinter:3.1.1
+    escpos-netprinter:3.2
 ```
 Setting this variable will generate logs from 3 different sources:
 - The CUPS printer driver
 - Jetdirect requests
 - The ESC/POS to HTML conversion itself
-- Accesses to the web interface
+- Browsing the web interface
 
 If you have problems with the CUPS interface, you can add port 631 to access the CUPS administrator interface.   The CUPS administrative username is `cupsadmin` and the password is `123456`;  you can change that in the dockerfile or at runtime inside the administrator interface.
 ```bash
@@ -87,13 +87,13 @@ docker run -d  \
     -p 9100:9100/tcp \
     -p 631:631/tcp
     --mount source=receiptVolume,target=/home/escpos-emu/web \
-    escpos-netprinter:3.1.1
+    escpos-netprinter:3.2
 ```
 
 ### Runtime Directory Structure
 
 The following directories inside the container are useful:
-- `/home/escpos-emu/web/`: Stores all the printed receipts and other control info
+- `/home/escpos-emu/web/`: Stores all the printed receipts and printer state (including logs)
 - `/home/escpos-emu/web/receipts`: Stores the HTML receipts 
 - `/home/escpos-emu/web/tmp`: Stores temporary files during processing (for debugging only)
 - `/home/escpos-emu/web/receipt_list.csv`: Created at runtime, this file contains the list of the printed receipts with the file location.
@@ -122,7 +122,7 @@ The following environment variables can be configured:
 | ESCPOS_TIMEZONE | "America/Montreal" | Sets the timezone for all datetime formatting |
 
 ## Known issues
-While version 3.1.1 is no longer a beta version, it has known defects:
+While version 3.2 is ready for production, it has known defects:
 - It still uses the Flask development server, so it is unsafe for public networks.
 - While it works with simple drivers, for example the one for the MUNBYN ITPP047 printers, the [Epson utilities](https://download.epson-biz.com/modules/pos/) refuse to speak to it.
 
